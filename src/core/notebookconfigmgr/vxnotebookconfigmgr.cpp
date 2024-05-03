@@ -34,7 +34,7 @@ const QString VXNotebookConfigMgr::c_nodeConfigName = "vx.json";
 
 bool VXNotebookConfigMgr::s_initialized = false;
 
-QVector<QRegExp> VXNotebookConfigMgr::s_externalNodeExcludePatterns;
+QVector<QRegularExpression> VXNotebookConfigMgr::s_externalNodeExcludePatterns;
 
 VXNotebookConfigMgr::VXNotebookConfigMgr(const QSharedPointer<INotebookBackend> &p_backend, QObject *p_parent)
     : BundleNotebookConfigMgr(p_backend, p_parent)
@@ -46,7 +46,7 @@ VXNotebookConfigMgr::VXNotebookConfigMgr(const QSharedPointer<INotebookBackend> 
         s_externalNodeExcludePatterns.reserve(patterns.size());
         for (const auto &pat : patterns) {
             if (!pat.isEmpty()) {
-                s_externalNodeExcludePatterns.push_back(QRegExp(pat, Qt::CaseInsensitive, QRegExp::Wildcard));
+                s_externalNodeExcludePatterns.push_back(QRegularExpression(QRegularExpression::wildcardToRegularExpression(pat), QRegularExpression::CaseInsensitiveOption));
             }
         }
     }
@@ -1009,7 +1009,7 @@ QVector<QSharedPointer<ExternalNode>> VXNotebookConfigMgr::fetchExternalChildren
 bool VXNotebookConfigMgr::isExcludedFromExternalNode(const QString &p_name) const
 {
     for (const auto &regExp : s_externalNodeExcludePatterns) {
-        if (regExp.exactMatch(p_name)) {
+        if (regExp.match(p_name).hasMatch()) {
             return true;
         }
     }

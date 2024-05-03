@@ -31,6 +31,7 @@
 #include "editors/plantumlhelper.h"
 #include "editors/graphvizhelper.h"
 #include <core/historymgr.h>
+#include "dialogs/notepropertiesdialog.h"
 #include <widgets/dialogs/selectdialog.h>
 
 #include "viewwindow.h"
@@ -340,6 +341,12 @@ void ViewArea::showSceneWidget()
     m_mainLayout->addWidget(m_sceneWidget);
 }
 
+void ViewArea::mouseDoubleClickEvent(QMouseEvent *p_event)
+{
+    if(p_event->buttons() == Qt::LeftButton && m_sceneWidget != nullptr){
+        emit VNoteX::getInst().newNoteQuicklyRequested();
+    }
+}
 void ViewArea::hideSceneWidget()
 {
     Q_ASSERT(m_sceneWidget);
@@ -514,12 +521,30 @@ bool ViewArea::closeViewWindow(ViewWindow *p_win, bool p_force, bool p_removeSpl
     setCurrentViewWindow(p_win);
 
     // Get info before close.
-    const auto session = p_win->saveSession();
+    auto session = p_win->saveSession();
     Notebook *notebook = nullptr;
+
+    //add by zhangyw for rename node
+    Node *node= nullptr;
+    QString firstline="";
+    //add by zhangyw for rename node
+
     if (p_win->getBuffer()) {
-        auto node = p_win->getBuffer()->getNode();
+        node = p_win->getBuffer()->getNode();
         if (node) {
             notebook = node->getNotebook();
+
+            //add by zhangyw for rename note from content
+            auto content=p_win->getBuffer()->getContent();
+            QTextStream stream(&content);
+
+            int i=0;
+            while(firstline.length()<1 && stream.atEnd()==false && i<10)
+            {
+                firstline=stream.readLine(100);
+                i++;
+            }
+            //add by zhangyw for rename note from content
         }
     }
 
@@ -528,7 +553,7 @@ bool ViewArea::closeViewWindow(ViewWindow *p_win, bool p_force, bool p_removeSpl
     }
 
     // Update history.
-    updateHistory(session, notebook);
+    //updateHistory(session, notebook);
 
     // Remove the status widget.
     if (m_currentStatusWidget && p_win == getCurrentViewWindow()) {
@@ -545,6 +570,26 @@ bool ViewArea::closeViewWindow(ViewWindow *p_win, bool p_force, bool p_removeSpl
         // Remove this split and workspace.
         removeViewSplit(split, true);
     }
+
+    //add by zhangyw for rename node
+        if(node->getName().startsWith(tr("note"))&&node->getName().endsWith(tr(".md")))
+        {
+            QString preFileName=firstline.replace(QRegularExpression("[#\\?\\\\*:/,.]")," ").simplified()+".md";
+            if(preFileName.length()<=3){ //contain ".md"
+                NotePropertiesDialog dialog(node,this->parentWidget());
+                if (dialog.exec() == QDialog::Accepted) {
+                    session.m_bufferPath=node->fetchAbsolutePath();
+                }
+            }else{
+                NotePropertiesDialog dialog(node,this->parentWidget(),preFileName);
+                if (dialog.exec() == QDialog::Accepted) {
+                    session.m_bufferPath=node->fetchAbsolutePath();
+                }
+            }
+        }
+
+    updateHistory(session, notebook);
+    //add by zhangyw for rename node
 
     return true;
 }
