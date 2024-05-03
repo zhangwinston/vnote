@@ -50,6 +50,7 @@ namespace vnotex
         void newFolder();
 
         void newNote();
+        void newNoteQuickly();
 
         void newQuickNote();
 

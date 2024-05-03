@@ -115,27 +115,31 @@ void ConfigMgr::locateConfigFolder()
     // Check app config.
     {
         QString folderPath(appDirPath + '/' + c_appFilesFolder);
-        if (QDir(folderPath).exists()) {
+
+//comment some statement by zhangyw for save config in app folder
+//        if (QDir(folderPath).exists()) {
             // Config folder in app/.
             m_appConfigFolderPath = PathUtils::cleanPath(folderPath);
-        } else {
-            m_appConfigFolderPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-        }
+//        } else {
+//            m_appConfigFolderPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+            QDir dir(m_appConfigFolderPath);
+            dir.mkpath(m_appConfigFolderPath);
+//        }
     }
 
     // Check user config.
     {
         QString folderPath(appDirPath + '/' + c_userFilesFolder);
-        if (QDir(folderPath).exists()) {
+//        if (QDir(folderPath).exists()) {
             // Config folder in app/.
             m_userConfigFolderPath = PathUtils::cleanPath(folderPath);
-        } else {
-            m_userConfigFolderPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+//        } else {
+//            m_userConfigFolderPath = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
 
             // Make sure it exists.
             QDir dir(m_userConfigFolderPath);
             dir.mkpath(m_userConfigFolderPath);
-        }
+
     }
 
     Q_ASSERT(m_appConfigFolderPath != m_userConfigFolderPath);

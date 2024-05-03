@@ -635,6 +635,27 @@
             }
         },
         "mainwindow" : {
+            "side_bar" : {
+                "fg" : "@base#normal#fg",
+                "bg" : "@base#normal#bg",
+                "selected" : {
+                    "fg" : "@base#content#selected#fg",
+                    "bg" : "@base#content#selected#bg"
+                },
+                "icon" : {
+                    "fg" : "@widgets#mainwindow#side_bar#fg",
+                    "selected" : {
+                        "fg" : "@widgets#mainwindow#side_bar#selected#fg"
+                    }
+                },
+                "hover" : {
+                    "fg" : "@widgets#mainwindow#side_bar#fg",
+                    "bg" : "@widgets#mainwindow#side_bar#bg"
+                },
+                "widget" : {
+                    "bg" : "@base#normal#bg"
+                }
+            },
             "dockwidget_tabbar" : {
                 "icon" : {
                     "fg" : "@base#icon#fg",
