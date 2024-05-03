@@ -6,6 +6,7 @@ body {
     padding: 16px;
     background-color: #333842;
     font-size: 16px;
+    line-height: 1.8; 
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -65,10 +66,11 @@ a:visited {
 ul, ol {
     padding: 0;
     padding-left: 24px;
+    line-height: 1.8;    
 }
 
 li {
-    line-height: 24px;
+    line-height: 1.8; 
 }
 
 li ul, li ol {
@@ -77,7 +79,7 @@ li ul, li ol {
 
 p, ul, ol {
     font-size: 16px;
-    line-height: 24px;
+    line-height: 2;
 }
 
 mark {
@@ -95,7 +97,7 @@ pre {
 }
 
 code {
-    font-family: "YaHei Consolas Hybrid", Consolas, Monaco, "Andale Mono", Monospace, "Courier New";
+    font-family: "YaHei Consolas Hybrid", Consolas, Monaco, "Andale Mono", Monospace, "Courier New", "Microsoft YaHei"!important;
     color: #98c379;
     word-break: break-word;
 }

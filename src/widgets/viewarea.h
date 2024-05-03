@@ -73,6 +73,7 @@ namespace vnotex
         QList<Buffer *> getAllBuffersInViewSplits() const;
 
         ViewWindow *getCurrentViewWindow() const;
+        ViewSplit *getCurrentViewSplit() const;
 
         const QVector<ViewSplit *>& getAllViewSplits() const;
 
@@ -97,6 +98,8 @@ namespace vnotex
         void handleTargetHit(void *p_item) Q_DECL_OVERRIDE;
 
         void clearNavigation() Q_DECL_OVERRIDE;
+
+        void mouseDoubleClickEvent(QMouseEvent *p_event) Q_DECL_OVERRIDE;
 
     protected:
         // To accept specific drop.
@@ -181,7 +184,8 @@ namespace vnotex
 
         void setCurrentViewWindow(ViewWindow *p_win);
 
-        ViewSplit *getCurrentViewSplit() const;
+        //ViewSplit *getCurrentViewSplit() const;
+        //void setCurrentViewSplit(ViewSplit *p_split, bool p_focus);
 
         QSharedPointer<ViewWorkspace> createWorkspace();
 

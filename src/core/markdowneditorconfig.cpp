@@ -67,6 +67,9 @@ void MarkdownEditorConfig::init(const QJsonObject &p_app, const QJsonObject &p_u
     m_smartTableEnabled = READBOOL(QStringLiteral("smart_table"));
     m_smartTableInterval = READINT(QStringLiteral("smart_table_interval"));
 
+    m_leading_space_line_factor = READREAL(QStringLiteral("leading_space_line_factor"));
+    m_leading_space_line_code_block_factor = READREAL(QStringLiteral("leading_space_line_code_block_factor"));
+
     m_spellCheckEnabled = READBOOL(QStringLiteral("spell_check"));
 
     m_editorOverriddenFontFamily = READSTR(QStringLiteral("editor_overridden_font_family"));
@@ -117,6 +120,8 @@ QJsonObject MarkdownEditorConfig::toJson() const
     obj[QStringLiteral("code_block_line_number")] = m_codeBlockLineNumberEnabled;
     obj[QStringLiteral("smart_table")] = m_smartTableEnabled;
     obj[QStringLiteral("smart_table_interval")] = m_smartTableInterval;
+    obj[QStringLiteral("leading_space_line_factor")] = m_leading_space_line_factor;
+    obj[QStringLiteral("leading_space_line_code_block_factor")] = m_leading_space_line_code_block_factor;
     obj[QStringLiteral("spell_check")] = m_spellCheckEnabled;
     obj[QStringLiteral("editor_overridden_font_family")] = m_editorOverriddenFontFamily;
 
@@ -534,6 +539,24 @@ int MarkdownEditorConfig::getSmartTableInterval() const
     return m_smartTableInterval;
 }
 
+//zhangyw add space of lines/codeblock
+qreal MarkdownEditorConfig::getLeadingSpaceOfLineFactor() const
+{
+    return m_leading_space_line_factor;
+}
+void MarkdownEditorConfig::setLeadingSpaceOfLineFactor(qreal factor)
+{
+    updateConfig(m_leading_space_line_factor, factor, this);
+}
+qreal MarkdownEditorConfig::getLeadingSpaceOfLineInCodeBlockFactor() const
+{
+    return m_leading_space_line_code_block_factor;
+}
+void MarkdownEditorConfig::setLeadingSpaceOfLineInCodeBlockFactor(qreal factor)
+{
+    updateConfig(m_leading_space_line_code_block_factor, factor, this);
+}
+//zhangyw add space of lines/codeblock
 bool MarkdownEditorConfig::isSpellCheckEnabled() const
 {
     return m_spellCheckEnabled;

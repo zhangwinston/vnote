@@ -33,8 +33,7 @@ function(windeployqt target)
 
     add_custom_target(deploy
         COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/winqt/"
-        COMMAND "${CMAKE_COMMAND}" -E
-            env PATH="${QT_BIN_DIR}" "${WINDEPLOYQT_EXECUTABLE}"
+        COMMAND "${WINDEPLOYQT_EXECUTABLE}"
             ${WINDEPLOYQT_ARGS}
             --no-quick-import
             --no-opengl-sw
