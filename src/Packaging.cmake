@@ -1,29 +1,34 @@
 # from: https://github.com/miurahr/cmake-qt-packaging-example
-
 find_package(Qt${QT_DEFAULT_MAJOR_VERSION} REQUIRED COMPONENTS Core)
 
-get_target_property(QMAKE_EXECUTABLE Qt5::qmake IMPORTED_LOCATION)
+get_target_property(QMAKE_EXECUTABLE Qt::qmake IMPORTED_LOCATION)
 get_filename_component(QT_BIN_DIR "${QMAKE_EXECUTABLE}" DIRECTORY)
 execute_process(COMMAND ${QMAKE_EXECUTABLE} -query QT_VERSION OUTPUT_VARIABLE QT_VERSION)
 
+set(QT_TOOLS_DIR "${QT_BIN_DIR}/../../../Tools")
+cmake_path(NORMAL_PATH QT_TOOLS_DIR OUTPUT_VARIABLE QT_TOOLS_DIR)
+
+set(QT_PLUGINS_DIR "${QT_BIN_DIR}/../plugins")
+cmake_path(NORMAL_PATH QT_PLUGINS_DIR OUTPUT_VARIABLE QT_PLUGINS_DIR)
+
 # To use the specific version of Qt
-set(WINDEPLOYQT_EXECUTABLE "${QT_BIN_DIR}/windeployqt")
+set(WINDEPLOYQT_EXECUTABLE "${QT_BIN_DIR}/windeployqt.exe")
 
 find_program(LINUXDEPLOY_EXECUTABLE linuxdeploy linuxdeploy-x86_64.AppImage HINTS "${QT_BIN_DIR}")
 find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${QT_BIN_DIR}")
 find_program(MACDEPLOYQTFIX_EXECUTABLE macdeployqtfix.py HINTS "${QT_BIN_DIR}")
 find_package(Python)
 
-mark_as_advanced(WINDEPLOYQT_EXECUTABLE LINUXDEPLOY_EXECUTABLE MACDEPLOYQT_EXECUTABLE)
-
 function(windeployqt target)
     # Bundle Library Files
     string(TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE_UPPER)
 
-    if(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
-        set(WINDEPLOYQT_ARGS --debug)
-    else()
-        set(WINDEPLOYQT_ARGS --release)
+    if ((QT_DEFAULT_MAJOR_VERSION GREATER 5))
+        if(CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
+            set(WINDEPLOYQT_ARGS --debug)
+        else()
+            set(WINDEPLOYQT_ARGS --release)
+        endif()
     endif()
 
     add_custom_target(deploy
@@ -31,7 +36,6 @@ function(windeployqt target)
         COMMAND "${CMAKE_COMMAND}" -E
             env PATH="${QT_BIN_DIR}" "${WINDEPLOYQT_EXECUTABLE}"
             ${WINDEPLOYQT_ARGS}
-            --verbose 0
             --no-quick-import
             --no-opengl-sw
             --no-compiler-runtime
@@ -42,12 +46,24 @@ function(windeployqt target)
         COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/winqt/styles/"
         COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/winqt/qmltooling/"
         COMMENT "Deploying Qt..."
-        DEPENDS vnote
+        DEPENDS vnote lrelease
     )
 
-    add_dependencies(deploy lrelease)
+    add_dependencies(pack deploy)
 
     install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/winqt/" DESTINATION "${CMAKE_INSTALL_BINDIR}" OPTIONAL)
+
+    set(OPENSSL_ROOT_DIR "${QT_TOOLS_DIR}/OpenSSL/Win_x64" CACHE STRING "OpenSSL dir")
+    file(GLOB OPENSSL_LIBS_FILES "${OPENSSL_ROOT_DIR}/bin/lib*.dll")
+    cmake_path(NORMAL_PATH OPENSSL_LIBS_FILES OUTPUT_VARIABLE OPENSSL_LIBS_FILES)
+    install(FILES ${OPENSSL_LIBS_FILES} DESTINATION "${CMAKE_INSTALL_BINDIR}" OPTIONAL)
+
+    message(STATUS "OpenSSLExtraLIBDIR:${OPENSSL_EXTRA_LIB_DIR}")
+    file(GLOB OPENSSL_EXTRA_LIB_FILES "${OPENSSL_EXTRA_LIB_DIR}/lib*.dll")
+    cmake_path(NORMAL_PATH OPENSSL_EXTRA_LIB_FILES OUTPUT_VARIABLE OPENSSL_EXTRA_LIB_FILES)
+    message(STATUS "OpenSSLExtraLibFiles:${OPENSSL_EXTRA_LIB_FILES}")
+    install(FILES ${OPENSSL_EXTRA_LIB_FILES} DESTINATION "${CMAKE_INSTALL_BINDIR}" OPTIONAL)
+
     set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
     include(InstallRequiredSystemLibraries)
 endfunction()
@@ -85,12 +101,16 @@ set(CPACK_WIX_UI_DIALOG "${PROJECT_SOURCE_DIR}/package/wix_dialog.png")
 set(CPACK_OUTPUT_CONFIG_FILE "${CMAKE_BINARY_DIR}/BundleConfig.cmake")
 
 add_custom_target(pack
-                  COMMAND ${CMAKE_CPACK_COMMAND} "--config" "${CMAKE_BINARY_DIR}/BundleConfig.cmake"
+                  COMMAND ${CMAKE_CPACK_COMMAND} "--config" "${CMAKE_BINARY_DIR}/BundleConfig.cmake" "--verbose"
                   COMMENT "Running CPACK. Please wait..."
                   DEPENDS vnote)
+add_dependencies(pack lrelease)
+
 set(CPACK_GENERATOR)
 
-if (WIN32)
+set(CPACK_PACKAGE_ICON "${CMAKE_CURRENT_LIST_DIR}/data/core/logo/64x64/vnote.png")
+
+if(WIN32)
     find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${QT_BIN_DIR}" DOC "Path to the windeployqt utility")
 
     list(APPEND CPACK_GENERATOR ZIP)
@@ -104,6 +124,42 @@ if (WIN32)
     endif()
 
     windeployqt(vnote)
+elseif(APPLE)
+    # Manually copy resources.
+    set(VX_BUNDLE_CONTENTS_DIR $<TARGET_FILE_DIR:vnote>/..)
+    add_custom_target(deploy
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_CURRENT_LIST_DIR}/data/core/Info.plist" ${VX_BUNDLE_CONTENTS_DIR}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${VX_EXTRA_RESOURCE_FILES_RCC} ${VX_BUNDLE_CONTENTS_DIR}/Resources
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${VX_BUNDLE_CONTENTS_DIR}/Resources/translations
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${VX_QM_FILES} ${VX_BUNDLE_CONTENTS_DIR}/Resources/translations
+        COMMENT "Copying resources into bundle Contents ${VX_BUNDLE_CONTENTS_DIR}"
+        DEPENDS vnote lrelease
+    )
+    add_dependencies(pack deploy)
+
+    message(STATUS "MACDeployQtExecutable: ${MACDEPLOYQT_EXECUTABLE}")
+    if (MACDEPLOYQT_EXECUTABLE)
+        message(STATUS "Package generation - MacOS - DMG")
+
+        list(APPEND CPACK_GENERATOR External)
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/CPackMacDeployQt.cmake.in "${CMAKE_BINARY_DIR}/CPackExternal.cmake")
+        set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/CPackExternal.cmake")
+        include(InstallRequiredSystemLibraries)
+    endif()
+else()
+    message(STATUS "LinuxDeployExecutable: ${LINUXDEPLOY_EXECUTABLE}")
+    if(LINUXDEPLOY_EXECUTABLE)
+        message(STATUS "Package generation - Linux - AppImage")
+
+        list(APPEND CPACK_GENERATOR External)
+        set(VX_APPIMAGE_DEST_DIR "${CPACK_PACKAGE_DIRECTORY}/_CPack_Packages/Linux/External/AppImage")
+        set(VX_APPIMAGE_DESKTOP_FILE "${VX_APPIMAGE_DEST_DIR}${CMAKE_INSTALL_PREFIX}/share/applications/vnote.desktop")
+        configure_file(${CMAKE_CURRENT_LIST_DIR}/CPackLinuxDeployQt.cmake.in "${CMAKE_BINARY_DIR}/CPackExternal.cmake")
+        set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/CPackExternal.cmake")
+    endif()
 endif()
 
 include(CPack)
