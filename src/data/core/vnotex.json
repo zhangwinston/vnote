@@ -325,6 +325,7 @@
                             "web/js/markdown-it/markdownItAnchor.umd.js",
                             "web/js/markdown-it/markdownItTocDoneRight.umd.js",
                             "web/js/markdown-it/markdown-it-implicit-figure.js",
+                            "web/js/markdown-it/markdown-it-mark.min.js",
                             "web/js/markdownit.js"
                         ],
                         "styles" : [
@@ -462,7 +463,7 @@
             "//comment" : "Whether fetch images to local in Parse To Markdown And Paste",
             "fetch_images_in_parse_and_paste" : true,
             "//comment" : "Whether protect from Cross-Site Scripting attack",
-            "protect_from_xss" : false,
+            "protect_from_xss" : true,
             "//comment" : "Whether allow HTML tags in source",
             "html_tag" : true,
             "//comment" : "Whether auto break a line with '\\n'",
