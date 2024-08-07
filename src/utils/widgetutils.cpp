@@ -25,6 +25,7 @@
 #include <QPushButton>
 #include <QSplitter>
 #include <QFormLayout>
+#include <QFileInfo>
 
 #include <core/global.h>
 #include <widgets/messageboxhelper.h>
@@ -78,7 +79,8 @@ QSize WidgetUtils::availableScreenSize(QWidget *p_widget)
 void WidgetUtils::openUrlByDesktop(const QUrl &p_url)
 {
     const auto scheme = p_url.scheme();
-    if (scheme != "http" && scheme != "https") {
+    if (scheme != "http" && scheme != "https" &&
+        !(p_url.isLocalFile() && QFileInfo(p_url.toLocalFile()).isDir())) {
         // Prompt for user.
         int ret = MessageBoxHelper::questionYesNo(MessageBoxHelper::Warning,
                                                   MainWindow::tr("Are you sure to open link (%1)?").arg(p_url.toString()),

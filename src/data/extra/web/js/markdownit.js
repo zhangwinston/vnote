@@ -213,8 +213,8 @@ class MarkdownIt extends VxWorker {
                               () => {
                                   this.mdit.use(window.markdownItXSS, {
                                       whiteList: {
-                                          input: ["class", "disabled", "type", "checked"],
-                                          mark: ["class"],
+                                          input: ["style", "class", "disabled", "type", "checked"],
+                                          span: ["style", "class"],
                                       }
                                   });
                               });
