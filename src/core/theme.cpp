@@ -50,12 +50,12 @@ QString Theme::getDisplayName(const QString &p_folder, const QString &p_locale)
 
     if (!p_locale.isEmpty()) {
         // Check full locale.
-        auto fullLocale = QString("%1_%2").arg(prefix, p_locale);
+        auto fullLocale = QStringLiteral("%1_%2").arg(prefix, p_locale);
         if (metaObj.contains(fullLocale)) {
             return metaObj.value(fullLocale).toString();
         }
 
-        auto shortLocale = QString("%1_%2").arg(prefix, p_locale.split('_')[0]);
+        auto shortLocale = QStringLiteral("%1_%2").arg(prefix, p_locale.split('_')[0]);
         if (metaObj.contains(shortLocale)) {
             return metaObj.value(shortLocale).toString();
         }
@@ -258,7 +258,6 @@ QString Theme::fetchQtStyleSheet() const
     translateStyleByPalette(m_palette, style);
     translateUrlToAbsolute(m_themeFolderPath, style);
     translateFontFamilyList(style);
-    translateScaledSize(WidgetUtils::calculateScaleFactor(), style);
     return style;
 }
 
@@ -297,7 +296,7 @@ void Theme::translateUrlToAbsolute(const QString &p_basePath, QString &p_style)
     const int urlCapturedIdx = 2;
 
     QDir dir(p_basePath);
-    const int literalSize = QString("url(").size();
+    const int literalSize = QStringLiteral("url(").size();
     int pos = 0;
     QRegularExpressionMatch match;
     while (pos < p_style.size()) {
@@ -346,46 +345,12 @@ void Theme::translateFontFamilyList(QString &p_style)
                 family = "\"" + family + "\"";
             }
 
-            auto newStr = QString("%1font-family: %2;").arg(match.captured(prefixCapturedIdx), family);
+            auto newStr = QStringLiteral("%1font-family: %2;").arg(match.captured(prefixCapturedIdx), family);
             p_style.replace(idx, match.capturedLength(), newStr);
             pos = idx + newStr.size();
         } else {
             pos = idx + match.capturedLength();
         }
-    }
-}
-
-void Theme::translateScaledSize(qreal p_factor, QString &p_style)
-{
-    QRegularExpression scaleRe("(\\s|:)\\$([+-]?)(\\d+)(?=\\D)");
-    const int prefixCapturedIdx = 1;
-    const int signCapturedIdx = 2;
-    const int numCapturedIdx = 3;
-
-    qDebug() << "translateScaledSize of Qt style sheet" << p_factor;
-
-    int pos = 0;
-    QRegularExpressionMatch match;
-    while (pos < p_style.size()) {
-        int idx = p_style.indexOf(scaleRe, pos, &match);
-        if (idx == -1) {
-            break;
-        }
-
-        auto numStr = match.captured(numCapturedIdx);
-        bool ok = false;
-        int val = numStr.toInt(&ok);
-        if (!ok) {
-            pos = idx + match.capturedLength();
-            continue;
-        }
-
-        val = val * p_factor + 0.5;
-        auto newStr = QString("%1%2%3").arg(match.captured(prefixCapturedIdx),
-                                            match.captured(signCapturedIdx),
-                                            QString::number(val));
-        p_style.replace(idx, match.capturedLength(), newStr);
-        pos = idx + newStr.size();
     }
 }
 

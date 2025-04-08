@@ -508,8 +508,6 @@ void MarkdownViewWindow::setupViewer()
                     setEditViewMode(m_editViewMode);
                 }
             });
-
-    m_viewer->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
 }
 
 void MarkdownViewWindow::syncTextEditorFromBuffer(bool p_syncPositionFromReadMode)
@@ -1066,7 +1064,7 @@ void MarkdownViewWindow::handleFileOpenParameters(const QSharedPointer<FileOpenP
         Q_ASSERT(!isReadMode());
         const auto &markdownEditorConfig = ConfigMgr::getInst().getEditorConfig().getMarkdownEditorConfig();
         if (markdownEditorConfig.getInsertFileNameAsTitle() && buffer->getContent().isEmpty()) {
-            const auto title = QString("# %1\n").arg(QFileInfo(buffer->getName()).completeBaseName());
+            const auto title = QStringLiteral("# %1\n").arg(QFileInfo(buffer->getName()).completeBaseName());
             m_editor->insertText(title);
         }
     } else {
@@ -1215,7 +1213,7 @@ void MarkdownViewWindow::removeFromImageHost(const QString &p_url)
 
     if (!ret) {
         MessageBoxHelper::notify(MessageBoxHelper::Warning,
-                                 QString("Failed to delete image (%1) from image host (%2).").arg(p_url, host->getName()),
+                                 QStringLiteral("Failed to delete image (%1) from image host (%2).").arg(p_url, host->getName()),
                                  QString(),
                                  errMsg,
                                  this);

@@ -75,6 +75,8 @@ MainWindow::MainWindow(QWidget *p_parent)
 
     setupShortcuts();
 
+    loadStateAndGeometry();
+
     m_dockWidgetHelper.postSetup();
 
     // The signal is particularly useful if your application has to do some last-second cleanup.
@@ -537,7 +539,7 @@ QString MainWindow::getViewAreaTitle() const
     if (win) {
         title = win->getName();
     }
-    return title.isEmpty() ? QString() : QString("%1 - %2").arg(title, ConfigMgr::c_appName);
+    return title.isEmpty() ? QString() : QStringLiteral("%1 - %2").arg(title, ConfigMgr::c_appName);
 }
 
 void MainWindow::setupOutlineViewer()

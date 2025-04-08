@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 
     case CommandLineOptions::VersionRequested:
     {
-        auto versionStr = QString("%1 %2").arg(app.applicationName()).arg(app.applicationVersion());
+        auto versionStr = QStringLiteral("%1 %2").arg(app.applicationName()).arg(app.applicationVersion());
         showMessageOnCommandLineIfAvailable(versionStr);
         return 0;
     }
@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
     // Init logger after app info is set.
     Logger::init(cmdOptions.m_verbose, cmdOptions.m_logToStderr);
 
-    qInfo() << QString("%1 (v%2) started at %3 (%4)").arg(ConfigMgr::c_appName,
+    qInfo() << QStringLiteral("%1 (v%2) started at %3 (%4)").arg(ConfigMgr::c_appName,
                                                           app.applicationVersion(),
                                                           QDateTime::currentDateTime().toString(),
                                                           QSysInfo::productType());
@@ -156,6 +156,13 @@ int main(int argc, char *argv[])
 
     // Should set the correct locale before VNoteX::getInst().
     loadTranslators(app);
+
+    if (app.styleSheet().isEmpty()) {
+        auto style = VNoteX::getInst().getThemeMgr().fetchQtStyleSheet();
+        if (!style.isEmpty()) {
+            app.setStyleSheet(style);
+        }
+    }
 
     MainWindow window;
     window.show();
@@ -172,14 +179,6 @@ int main(int argc, char *argv[])
 
     // Let MainWindow show first to decide the screen on which app is running.
     WidgetUtils::calculateScaleFactor(window.windowHandle()->screen());
-
-    if (app.styleSheet().isEmpty()) {
-        auto style = VNoteX::getInst().getThemeMgr().fetchQtStyleSheet();
-        if (!style.isEmpty()) {
-            app.setStyleSheet(style);
-            WidgetUtils::updateStyle(&window);
-        }
-    }
 
     VNoteX::getInst().getThemeMgr().setBaseBackground(window.palette().color(QPalette::Base));
 
@@ -258,7 +257,7 @@ void showMessageOnCommandLineIfAvailable(const QString &p_msg)
 {
 #if defined(Q_OS_WIN)
     MessageBoxHelper::notify(MessageBoxHelper::Information,
-                             QString("<pre>%1</pre>").arg(p_msg));
+                             QStringLiteral("<pre>%1</pre>").arg(p_msg));
 #else
     fprintf(stderr, "%s\n", qPrintable(p_msg));
 #endif

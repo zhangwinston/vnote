@@ -31,7 +31,7 @@ jobs:
           - name: "Build on Arm64"
             os: macos-latest
             arch: universal
-            qt: 6.5.3
+            qt: 6.8.3
 
     runs-on: ${{matrix.config.os}}
 
@@ -81,10 +81,10 @@ jobs:
 
       - name: Cache Qt
         id: cache-qt
-        uses: actions/cache@v1  # not v2!
+        uses: actions/cache@v4
         with:
           path: ../Qt
-          key: ${{ runner.os }}-QtCache-6.5
+          key: ${{ runner.os }}-QtCache-6.8
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
@@ -119,7 +119,7 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
 
       - name: Archive Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: VNote-${{env.VNOTE_VER}}-mac-${{matrix.config.arch}}
           path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-mac-${{matrix.config.arch}}.dmg
