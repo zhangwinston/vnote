@@ -8,6 +8,7 @@
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QTimer>
+#include <QWidgetAction>
 
 #include "propertydefs.h"
 
@@ -28,8 +29,7 @@
 using namespace vnotex;
 
 AttachmentPopup::AttachmentPopup(QToolButton *p_btn, QWidget *p_parent)
-    : QMenu(p_parent),
-      m_button(p_btn)
+    : ButtonPopup(p_btn, p_parent)
 {
     setupUI();
 
@@ -46,7 +46,8 @@ AttachmentPopup::AttachmentPopup(QToolButton *p_btn, QWidget *p_parent)
 
 void AttachmentPopup::setupUI()
 {
-    auto mainLayout = new QVBoxLayout(this);
+    QWidget *widget = new QWidget{};
+    auto mainLayout = new QVBoxLayout(widget);
 
     const auto &themeMgr = VNoteX::getInst().getThemeMgr();
 
@@ -66,7 +67,7 @@ void AttachmentPopup::setupUI()
                         const auto destFolderPath = getDestFolderPath();
 
                         auto &sessionConfig = ConfigMgr::getInst().getSessionConfig();
-                        auto files = QFileDialog::getOpenFileNames(this,
+                        auto files = QFileDialog::getOpenFileNames(nullptr,
                                                                    tr("Select Files As Attachments"),
                                                                    sessionConfig.getExternalMediaDefaultPath());
                         if (files.isEmpty()) {
@@ -202,7 +203,9 @@ void AttachmentPopup::setupUI()
             });
     mainLayout->addWidget(m_viewer);
 
-    setMinimumSize(320, 384);
+    widget->setMinimumSize(320, 384);
+
+    addWidget(widget);
 }
 
 QToolButton *AttachmentPopup::createButton()

@@ -1,4 +1,12 @@
 # Changes
+## v3.19.2
+* Codesign MacOS Bundle
+* Fix toolbar expansion button style
+* Support hot-reloading of theme via --watch-themes option
+
+## v3.19.1
+* Fix toolbar button in Qt 6.8
+
 ## v3.19.0
 * Add VSCode-sytle editor shortcuts
 

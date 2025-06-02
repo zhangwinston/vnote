@@ -3,9 +3,11 @@
 
 [简体中文](README_zh_CN.md)
 
+[Project on Gitee](https://gitee.com/vnotex/vnote)
+
 A pleasant note-taking platform.
 
-For more information, please visit [**VNote's Home Page**](https://vnotex.github.io/vnote) or [Home Page on Gitee](https://tamlok.gitee.io/vnote).
+For more information, please visit [**VNote's Home Page**](https://vnotex.github.io/vnote).
 
 ![VNote](pics/vnote.png)
 
@@ -26,7 +28,7 @@ Continuous builds on `master` branch could be found at the [Continuous Build](ht
 Latest stable builds could be found at the [latest release](https://github.com/vnotex/vnote/releases/latest). Alternative download services are available:
 
 * [Tianyi Netdisk](https://cloud.189.cn/t/Av67NvmEJVBv)
-* [Baidu Netdisk](https://pan.baidu.com/s/1Fou1flmBsQUQ8Qs9V_M6Aw) with the code `note`
+* [Baidu Netdisk](https://pan.baidu.com/s/1lX69oMBw8XuJshQDN3HiHw?pwd=f8fk)
 
 ## Supports
 * [GitHub Issues](https://github.com/vnotex/vnote/issues);

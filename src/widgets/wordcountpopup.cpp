@@ -70,11 +70,6 @@ void WordCountPopup::updateCount(const ViewWindow::WordCountInfo &p_info)
 
 void WordCountPopup::setupUI()
 {
-    QWidget *mainWidget = new QWidget(this);
-    setCentralWidget(mainWidget);
-
-    auto mainLayout = new QVBoxLayout(mainWidget);
-
-    m_panel = new WordCountPanel(mainWidget);
-    mainLayout->addWidget(m_panel);
+    m_panel = new WordCountPanel(this);
+    addWidget(m_panel);
 }

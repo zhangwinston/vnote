@@ -1,6 +1,5 @@
 #include "outlinepopup.h"
 
-#include <QVBoxLayout>
 #include <QToolButton>
 
 #include <core/global.h>
@@ -10,8 +9,7 @@
 using namespace vnotex;
 
 OutlinePopup::OutlinePopup(QToolButton *p_btn, QWidget *p_parent)
-    : QMenu(p_parent),
-      m_button(p_btn)
+    : ButtonPopup(p_btn, p_parent)
 {
     setupUI();
 
@@ -23,13 +21,9 @@ OutlinePopup::OutlinePopup(QToolButton *p_btn, QWidget *p_parent)
 
 void OutlinePopup::setupUI()
 {
-    auto mainLayout = new QVBoxLayout(this);
-    WidgetUtils::setContentsMargins(mainLayout);
-
     m_viewer = new OutlineViewer(tr("Outline"), this);
-    mainLayout->addWidget(m_viewer);
-
-    setMinimumSize(320, 384);
+    m_viewer->setMinimumSize(320, 384);
+    addWidget(m_viewer);
 }
 
 void OutlinePopup::setOutlineProvider(const QSharedPointer<OutlineProvider> &p_provider)
@@ -39,7 +33,7 @@ void OutlinePopup::setOutlineProvider(const QSharedPointer<OutlineProvider> &p_p
 
 void OutlinePopup::showEvent(QShowEvent* p_event)
 {
-    QMenu::showEvent(p_event);
+    ButtonPopup::showEvent(p_event);
 
     // Move it to be right-aligned.
     if (m_button->isVisible()) {
