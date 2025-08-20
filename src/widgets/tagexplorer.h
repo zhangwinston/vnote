@@ -4,6 +4,8 @@
 #include <QFrame>
 #include <QSharedPointer>
 #include <QScopedPointer>
+#include <QComboBox>
+
 
 #include "navigationmodewrapper.h"
 
@@ -40,6 +42,8 @@ namespace vnotex
 
         void handleTagMoved(QTreeWidgetItem *p_item);
 
+        void filterTags(const QString &p_text);
+
     private:
         enum Column { Name = 0 };
 
@@ -67,7 +71,7 @@ namespace vnotex
 
         QString itemNode(const QListWidgetItem *p_item) const;
 
-        void updateNodeList(const QString &p_tag);
+        void updateNodeList(const QStringList &p_tags);
 
         void openItem(const QListWidgetItem *p_item);
 
@@ -99,6 +103,8 @@ namespace vnotex
         QIcon m_tagIcon;
 
         QIcon m_nodeIcon;
+
+        QComboBox *m_tagSearchEdit = nullptr;
     };
 }
 

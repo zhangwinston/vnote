@@ -14,4 +14,8 @@ aqtinstall.log
 tags
 CMakeLists.txt.user
 build
+build.*
+build*
 .DS_Store
+.vscode
+dev.sh
