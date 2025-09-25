@@ -96,11 +96,23 @@ jobs:
           name: VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}
           path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}
 
-      - name: Archive Installer
+      - name: Archive exe
         uses: actions/upload-artifact@v4
         with:
-          name: VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.msi
-          path: ${{runner.workspace}}/build/VNote*.msi
+          name: vnote
+          path: ${{runner.workspace}}/build/vnote.exe
+
+      - name: Archive dll
+        uses: actions/upload-artifact@v4
+        with:
+          name: VTextEdit
+          path: ${{runner.workspace}}/build/VTextEdit.dll
+
+      - name: Archive rcc
+        uses: actions/upload-artifact@v4
+        with:
+          name: vnote_extra
+          path: ${{runner.workspace}}/build/vnote_extra.rcc
 
       - name: Update Tag
         if: github.ref == 'refs/heads/refine'
