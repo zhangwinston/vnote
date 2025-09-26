@@ -100,19 +100,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vnote
-          path: ${{runner.workspace}}/build/vnote.exe
+          path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64/bin/vnote.exe
 
       - name: Archive dll
         uses: actions/upload-artifact@v4
         with:
           name: VTextEdit
-          path: ${{runner.workspace}}/build/VTextEdit.dll
+          path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64/bin/VTextEdit.dll
 
       - name: Archive rcc
         uses: actions/upload-artifact@v4
         with:
           name: vnote_extra
-          path: ${{runner.workspace}}/build/vnote_extra.rcc
+          path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64/bin/vnote_extra.rcc
 
       - name: Update Tag
         if: github.ref == 'refs/heads/refine'
