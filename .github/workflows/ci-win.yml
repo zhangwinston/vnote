@@ -127,7 +127,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # glob not supported
-          files: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.zip
+          # files: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.zip
+          files: ${{runner.workspace}}/build/_CPack_Packages/win64/WIX/VNote-${{env.VNOTE_VER}}-win64/bin/*
           release: Continuous Build
           tag: continuous-build
 
