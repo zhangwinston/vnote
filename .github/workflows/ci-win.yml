@@ -110,7 +110,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           # glob not supported
           # files: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.zip
-          files: ${{runner.workspace}}/build/libs/vtextedit/src/VTextEdit.dll
+          files: |
+            ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.zip
+            ${{runner.workspace}}/build/libs/vtextedit/src/VTextEdit.dll
+            ${{runner.workspace}}/build/src/vnote.exe
           release: Continuous Build
           tag: continuous-build
 
