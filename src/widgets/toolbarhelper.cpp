@@ -19,6 +19,7 @@
 #include "messageboxhelper.h"
 #include "propertydefs.h"
 #include "widgetsfactory.h"
+#include <QShortcut>
 #include <core/configmgr.h>
 #include <core/coreconfig.h>
 #include <core/editorconfig.h>
@@ -60,7 +61,7 @@ QToolBar *ToolBarHelper::setupFileToolBar(MainWindow *p_win, QToolBar *p_toolBar
 
     auto toolBtn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
     Q_ASSERT(toolBtn);
-    toolBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    toolBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
     toolBtn->setPopupMode(QToolButton::InstantPopup);
     toolBtn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
 
@@ -77,7 +78,7 @@ QToolBar *ToolBarHelper::setupFileToolBar(MainWindow *p_win, QToolBar *p_toolBar
     btnMenu->addSeparator();
 
     // Import notebook.
-    btnMenu->addAction(MainWindow::tr("Open Notebook"), btnMenu,
+    btnMenu->addAction(MainWindow::tr("Open Other Notebooks"), btnMenu,
                        []() { emit VNoteX::getInst().importNotebookRequested(); });
 
     btnMenu->addSeparator();
@@ -90,23 +91,33 @@ QToolBar *ToolBarHelper::setupFileToolBar(MainWindow *p_win, QToolBar *p_toolBar
   // New Note.
   {
     auto newBtn = WidgetsFactory::createToolButton(tb);
-    newBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    newBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
     // Popup menu.
     auto newMenu = WidgetsFactory::createMenu(tb);
     newBtn->setMenu(newMenu);
 
     // New note.
-    const auto text = MainWindow::tr("New Note");
-    auto newNoteAct = newMenu->addAction(generateIcon("new_note.svg"), text, newMenu,
-                                         []() { emit VNoteX::getInst().newNoteRequested(); });
+    auto newNoteAct =
+        newMenu->addAction(generateIcon("new_note.svg"), MainWindow::tr("New Note"), newMenu,
+                           []() { emit VNoteX::getInst().newNoteQuicklyRequested(); });
     WidgetUtils::addActionShortcut(newNoteAct,
-                                   coreConfig.getShortcut(CoreConfig::Shortcut::NewNote));
+                                   coreConfig.getShortcut(CoreConfig::Shortcut::NewNoteQuickly));
     newBtn->setDefaultAction(newNoteAct);
     // To hide the shortcut text shown in button.
-    newBtn->setText(text);
+    newBtn->setText(MainWindow::tr("New Note"));
 
-    // New quick note.
+    // add by zhangyw when you want create from dialog normally, select template etc
+    {
+      auto shortcut = WidgetUtils::createShortcut(
+          coreConfig.getShortcut(CoreConfig::Shortcut::NewNote), p_win, Qt::WindowShortcut);
+      if (shortcut) {
+        QObject::connect(shortcut, &QShortcut::activated, p_win,
+                         [p_win]() { emit VNoteX::getInst().newNoteRequested(); });
+      }
+    }
+    // add by zhangyw when you want create from dialog normally, select template etc
+    //  New quick note.
     auto newQuickNoteAct =
         newMenu->addAction(generateIcon("new_note.svg"), MainWindow::tr("New Quick Note"), newMenu,
                            []() { emit VNoteX::getInst().newQuickNoteRequested(); });
@@ -157,7 +168,7 @@ QToolBar *ToolBarHelper::setupFileToolBar(MainWindow *p_win, QToolBar *p_toolBar
         tb->addAction(generateIcon("export_menu.svg"), MainWindow::tr("Export (Convert Format)"),
                       []() { emit VNoteX::getInst().exportRequested(); });
     auto btn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
-    btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
     WidgetUtils::addActionShortcut(act, coreConfig.getShortcut(CoreConfig::Shortcut::Export));
     btn->setText(MainWindow::tr("Export"));
   }
@@ -169,6 +180,7 @@ QToolBar *ToolBarHelper::setupQuickAccessToolBar(MainWindow *p_win, QToolBar *p_
   auto tb = p_toolBar;
   if (!tb) {
     tb = createToolBar(p_win, MainWindow::tr("Quick Access"), "QuickAccessToolBar");
+    tb->setToolButtonStyle(Qt::ToolButtonIconOnly);
   }
 
   const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
@@ -192,7 +204,7 @@ QToolBar *ToolBarHelper::setupQuickAccessToolBar(MainWindow *p_win, QToolBar *p_
       emit VNoteX::getInst().openFileRequested(flashPage, paras);
     });
     auto toolBtn = dynamic_cast<QToolButton *>(tb->widgetForAction(flashPageAct));
-    toolBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    toolBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
     WidgetUtils::addActionShortcut(flashPageAct,
                                    coreConfig.getShortcut(CoreConfig::Shortcut::FlashPage));
     // To hide the shortcut text shown in button.
@@ -202,7 +214,7 @@ QToolBar *ToolBarHelper::setupQuickAccessToolBar(MainWindow *p_win, QToolBar *p_
   // Quick Access.
   {
     auto toolBtn = WidgetsFactory::createToolButton(tb);
-    toolBtn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    toolBtn->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
     auto btnMenu = WidgetsFactory::createMenu(tb);
     toolBtn->setMenu(btnMenu);
@@ -241,7 +253,7 @@ QToolBar *ToolBarHelper::setupQuickAccessToolBar(MainWindow *p_win, QToolBar *p_
     auto act = tb->addAction(generateIcon("task_menu.svg"), MainWindow::tr("Task"));
     auto btn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
     btn->setPopupMode(QToolButton::InstantPopup);
-    btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
     btn->setProperty(PropertyDefs::c_toolButtonWithoutMenuIndicator, true);
 
     auto taskMenu = WidgetsFactory::createMenu(tb);
@@ -264,7 +276,7 @@ QToolBar *ToolBarHelper::setupQuickAccessToolBar(MainWindow *p_win, QToolBar *p_
     auto act = ue->getTriggerAction();
     tb->addAction(act);
     auto btn = dynamic_cast<QToolButton *>(tb->widgetForAction(act));
-    btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
     btn->setText(ue->getTriggerActionText());
   }
 

@@ -856,6 +856,11 @@ MarkdownViewWindow::createMarkdownEditorConfig(const EditorConfig &p_editorConfi
   editorConfig->m_constrainInplacePreviewWidthEnabled =
       p_config.getConstrainInplacePreviewWidthEnabled();
 
+  // zhangyw add space of lines/codeblock
+  editorConfig->m_leading_space_line_factor = p_config.getLeadingSpaceOfLineFactor();
+  editorConfig->m_leading_space_line_code_block_factor =
+      p_config.getLeadingSpaceOfLineInCodeBlockFactor();
+  // zhangyw add space of lines/codeblock
   {
     auto srcs = p_config.getInplacePreviewSources();
     vte::MarkdownEditorConfig::InplacePreviewSources editorSrcs =
@@ -1385,8 +1390,28 @@ void MarkdownViewWindow::updateEditorFromConfig() {
   const auto &coreConfig = ConfigMgr::getInst().getCoreConfig();
 
   {
-    vte::Key leaderKey(coreConfig.getShortcutLeaderKey());
+    QString leaderStr = coreConfig.getShortcutLeaderKey();
+    vte::Key leaderKey(leaderStr);
     m_editor->setLeaderKeyToSkip(leaderKey.m_key, leaderKey.m_modifiers);
+
+    // add by zhangyw navigationMode skip extra keys
+    QString keyStr = nullptr;
+    bool withLeaderKey = true;
+    QString navigationModeStr = coreConfig.getShortcut(CoreConfig::Shortcut::NavigationMode);
+    if (navigationModeStr.startsWith(leaderStr)) { // shortcut with leaderkey
+      QStringList strList = navigationModeStr.split(" ");
+      if (strList[strList.count() - 1].length() > 0) {
+        keyStr = strList[strList.count() - 1];
+      }
+    }
+    if (keyStr == nullptr) { // shortcut without leader key
+      keyStr = navigationModeStr;
+      withLeaderKey = false;
+    }
+    vte::Key navigationModeKey(keyStr);
+    m_editor->setNavigationModeKeyToSkip(navigationModeKey.m_key, navigationModeKey.m_modifiers,
+                                         withLeaderKey);
+    // add by zhangyw navigationMode skip extra keys
   }
 }
 

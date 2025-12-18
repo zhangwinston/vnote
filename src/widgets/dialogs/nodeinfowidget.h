@@ -21,6 +21,7 @@ public:
   enum Mode { Create, Edit };
 
   NodeInfoWidget(const Node *p_node, QWidget *p_parent = nullptr);
+  NodeInfoWidget(const Node *p_node, QString newName, QWidget *p_parent = nullptr);
 
   NodeInfoWidget(const Node *p_parentNode, Node::Flags p_flags, QWidget *p_parent = nullptr);
 
@@ -67,6 +68,7 @@ private:
   const Node *m_node = nullptr;
 
   bool m_fileTypeComboBoxMuted = false;
+  QString m_newName = "";
 };
 } // namespace vnotex
 

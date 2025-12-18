@@ -2,9 +2,9 @@ name: CI-Windows
 
 on:
   push:
-    branches: [ master ]
+    branches: [ refine ]
   pull_request:
-    branches: [ master ]
+    branches: [ refine ]
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
@@ -40,16 +40,24 @@ jobs:
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE.
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          retries: 3
+          retry-wait-seconds: 10
 
       - name: Init Submodules
         shell: bash
         run: |
           auth_header="$(git config --local --get http.https://github.com/.extraheader)"
-          git submodule sync --recursive
-          git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
+          git config --global http.postBuffer 524288000
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 0
+          for i in {1..3}; do
+            git submodule sync --recursive && \
+            git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1 && \
+            break || sleep 10
+          done
 
       - name: Cache Qt
         id: cache-qt
@@ -103,30 +111,48 @@ jobs:
           path: ${{runner.workspace}}/build/VNote*.msi
 
       - name: Update Tag
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/refine'
         shell: bash
         run: |
           git tag --force continuous-build ${GITHUB_SHA}
           git push --force --tags
 
+      - name: Copy release files to workspace
+        if: github.ref == 'refs/heads/refine'
+        shell: cmd
+        env:
+          RUNNER_WS: ${{runner.workspace}}
+          GITHUB_WS: ${{github.workspace}}
+        run: |
+          copy %RUNNER_WS%\build\VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.zip %GITHUB_WS%
+          copy %RUNNER_WS%\build\VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.msi %GITHUB_WS%
+          cd %GITHUB_WS%
+          dir *.zip
+          dir *.msi
+
       - name: Update Continuous Build Release
-        if: github.ref == 'refs/heads/master'
-        uses: johnwbyrd/update-release@v1.0.0
+        if: github.ref == 'refs/heads/refine'
+        uses: softprops/action-gh-release@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          # glob not supported
-          files: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.zip
-          release: Continuous Build
-          tag: continuous-build
+          name: Continuous Build
+          tag_name: continuous-build
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          draft: false
+          files: |
+            VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.zip
+            VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.msi
 
       - name: Release
-        if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
+        if: github.ref == 'refs/heads/refine' && startsWith(github.event.head_commit.message, '[Release]')
         uses: ncipollo/release-action@v1.11.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # glob not supported
           artifacts: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}
-          commit: master
+          commit: refine
+    
           tag: v${{env.VNOTE_VER}}
           allowUpdates: true
           draft: true

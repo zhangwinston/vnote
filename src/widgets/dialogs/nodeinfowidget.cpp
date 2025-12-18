@@ -24,6 +24,15 @@ NodeInfoWidget::NodeInfoWidget(const Node *p_node, QWidget *p_parent)
   setNode(p_node);
 }
 
+// add by zhangyw create special NodeInfoWidget with new fileName
+NodeInfoWidget::NodeInfoWidget(const Node *p_node, QString newName, QWidget *p_parent)
+    : QWidget(p_parent), m_mode(Mode::Edit) {
+  m_newName = newName;
+  setupUI(p_node->getParent(), p_node->getFlags());
+  setNode(p_node);
+}
+// add by zhangyw create special NodeInfoWidget with new fileName
+
 NodeInfoWidget::NodeInfoWidget(const Node *p_parentNode, Node::Flags p_flags, QWidget *p_parent)
     : QWidget(p_parent), m_mode(Mode::Create) {
   setupUI(p_parentNode, p_flags);
@@ -123,7 +132,14 @@ void NodeInfoWidget::setNode(const Node *p_node) {
   m_node = p_node;
   if (m_node) {
     Q_ASSERT(getNotebook() == m_node->getNotebook());
-    m_nameLineEdit->setText(m_node->getName());
+
+    // modify by zhangyw for specify new file name
+    if (m_newName == "")
+      m_nameLineEdit->setText(m_node->getName());
+    else
+      m_nameLineEdit->setText(m_newName);
+    // modify by zhangyw for specify new file name
+
     m_parentNodeLabel->setLevels(nodeToLevels(m_node->getParent()));
 
     auto createdTime = Utils::dateTimeString(m_node->getCreatedTimeUtc().toLocalTime());

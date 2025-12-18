@@ -1152,6 +1152,11 @@ QToolBar *ViewWindow::createToolBar(QWidget *p_parent) {
   auto extBtn = toolBar->findChild<QToolButton *>(QLatin1String("qt_toolbar_ext_button"));
   Q_ASSERT(extBtn);
   */
+  // zhangyw add hide toolbar
+  if (iconSize == 0) {
+    toolBar->setVisible(false);
+  }
+  // zhangyw add hide toolbar
 
   return toolBar;
 }

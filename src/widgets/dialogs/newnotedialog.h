@@ -17,6 +17,7 @@ public:
 
   const QSharedPointer<Node> &getNewNode() const;
 
+  bool quickNewNote();
   static QSharedPointer<Node> newNote(Notebook *p_notebook, Node *p_parentNode,
                                       const QString &p_name, const QString &p_templateContent,
                                       QString &p_errMsg);

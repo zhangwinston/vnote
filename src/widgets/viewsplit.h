@@ -8,6 +8,8 @@
 #include <buffer/buffer.h>
 #include <core/global.h>
 
+#include <QStyleOptionTab>
+#include <QStylePainter>
 class QToolButton;
 class QMenu;
 class QActionGroup;
@@ -16,7 +18,19 @@ namespace vnotex {
 class ViewWindow;
 struct ViewWorkspace;
 
-class ViewSplit : public QTabWidget {
+class TabBar : public QTabBar {
+  Q_OBJECT
+public:
+  TabBar(QWidget *parent = 0) : QTabBar(parent) {}
+
+protected:
+  void paintEvent(QPaintEvent *p_event) Q_DECL_OVERRIDE;
+};
+class TabWidget : public QTabWidget {
+public:
+  TabWidget(QWidget *parent = 0) : QTabWidget(parent) { setTabBar(new TabBar(parent)); }
+};
+class ViewSplit : public TabWidget {
   Q_OBJECT
 public:
   typedef std::function<bool(ViewWindow *)> ViewWindowSelector;

@@ -145,11 +145,56 @@ int main(int argc, char *argv[]) {
                  .arg(ConfigMgr::c_appName, app.applicationVersion(),
                       QDateTime::currentDateTime().toString(), QSysInfo::productType());
 
-  qInfo() << "OpenSSL build version:" << QSslSocket::sslLibraryBuildVersionString()
-          << "link version:" << QSslSocket::sslLibraryVersionString();
+  // Check SSL/TLS library version compatibility
+  // Design rationale:
+  // 1. Qt links against SSL library at compile time (build version)
+  // 2. Qt loads SSL library at runtime (link version)
+  // 3. Version mismatch may cause ABI incompatibility, missing features, or security issues
+  // 4. This check helps detect potential network problems early
+  const auto buildVersionStr = QSslSocket::sslLibraryBuildVersionString();
+  const auto linkVersionStr = QSslSocket::sslLibraryVersionString();
+  const auto buildVersionNum = QSslSocket::sslLibraryBuildVersionNumber();
+  const auto linkVersionNum = QSslSocket::sslLibraryVersionNumber();
 
-  if (QSslSocket::sslLibraryBuildVersionNumber() != QSslSocket::sslLibraryVersionNumber()) {
-    qWarning() << "versions of the built and linked OpenSSL mismatch, network may not work";
+  qInfo() << "SSL library build version:" << buildVersionStr
+          << "link version:" << linkVersionStr;
+
+  // Solution: Smart detection based on SSL backend type
+  // For Schannel (Windows), both versions are Schannel but formatted differently:
+  // - Build: "Secure Channel (NTDDI: 0xA00000C)" - Windows SDK version
+  // - Link: "Secure Channel, Windows 10.0.17763" - OS version
+  // These are compatible, so we only check if both are Schannel
+  const bool isSchannel = buildVersionStr.contains("Secure Channel", Qt::CaseInsensitive) &&
+                          linkVersionStr.contains("Secure Channel", Qt::CaseInsensitive);
+  const bool isOpenSSL = buildVersionStr.contains("OpenSSL", Qt::CaseInsensitive) ||
+                         linkVersionStr.contains("OpenSSL", Qt::CaseInsensitive);
+
+  if (isSchannel) {
+    // Schannel: Both are Schannel, compatible by design
+    // Only warn if backend type changed (should not happen)
+    if (!linkVersionStr.contains("Secure Channel", Qt::CaseInsensitive)) {
+      qWarning() << "SSL backend changed from Schannel to" << linkVersionStr
+                 << ", network may not work";
+    }
+  } else if (isOpenSSL) {
+    // OpenSSL: Check version number mismatch
+    if (buildVersionNum != linkVersionNum) {
+      qWarning() << "versions of the built and linked OpenSSL mismatch"
+                 << "(build:" << buildVersionNum << "link:" << linkVersionNum << "),"
+                 << "network may not work";
+    }
+  } else {
+    // Other backends (SecureTransport on macOS, etc.): Check version number mismatch
+    if (buildVersionNum != linkVersionNum) {
+      qWarning() << "versions of the built and linked SSL library mismatch"
+                 << "(build:" << buildVersionNum << "link:" << linkVersionNum << "),"
+                 << "network may not work";
+    }
+  }
+
+  // Additional check: Verify SSL functionality is available
+  if (!QSslSocket::supportsSsl()) {
+    qCritical() << "SSL/TLS support is not available, network features requiring SSL will fail";
   }
 
   // Should set the correct locale before VNoteX::getInst().

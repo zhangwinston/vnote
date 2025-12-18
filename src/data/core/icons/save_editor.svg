@@ -1,1 +1,5 @@
-<?xml version="1.0" encoding="UTF-8"?><svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 9C6 7.34315 7.34315 6 9 6H34.2814L42 13.2065V39C42 40.6569 40.6569 42 39 42H9C7.34315 42 6 40.6569 6 39V9Z" fill="none" stroke="#000000" stroke-width="4" stroke-linejoin="round"/><path fill-rule="evenodd" clip-rule="evenodd" d="M24.0083 6L24 13.3846C24 13.7245 23.5523 14 23 14H15C14.4477 14 14 13.7245 14 13.3846L14 6" fill="none"/><path d="M24.0083 6L24 13.3846C24 13.7245 23.5523 14 23 14H15C14.4477 14 14 13.7245 14 13.3846L14 6H24.0083Z" stroke="#000000" stroke-width="4" stroke-linejoin="round"/><path d="M9 6H34.2814" stroke="#000000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 26H34" stroke="#000000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 34H24.0083" stroke="#000000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+<path d="M67.8,214.3v-73.1h119.3v73.1H211V78.2l-33.7-34.5H43.9v170.6H67.8z M32,19.3h155.1l47.7,48.7v158.4
+	c0,6.7-5.3,12.2-11.9,12.2H32c-6.6,0-11.9-5.5-11.9-12.2V31.5C20.1,24.8,25.4,19.3,32,19.3z M91.7,165.5v48.7h71.6v-48.7H91.7z" fill="#000"/>
+</svg>

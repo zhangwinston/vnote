@@ -228,7 +228,19 @@ void MarkdownEditor::typeLink() {
 
 void MarkdownEditor::typeImage() {
   Q_ASSERT(m_buffer);
-  ImageInsertDialog dialog(tr("Insert Image"), "", "", "", true, this);
+  // zhangyw add download image from special site
+  auto cursor = m_textEdit->textCursor();
+  auto p_block = cursor.block().previous();
+  QString marker("@@");
+  QString new_referer;
+  if (p_block.isValid() && (p_block.text().startsWith(marker)) && p_block.length() > 10) {
+    new_referer = p_block.text().mid(2, p_block.length() - 1);
+  }
+  // zhangyw add download image from special site
+
+  // zhangyw modify download image from special site
+  ImageInsertDialog dialog(tr("Insert Image"), "", "", "", new_referer, true, this);
+  // zhangyw modify download image from special site
 
   // Try fetch image from clipboard.
   {
@@ -798,7 +810,7 @@ void MarkdownEditor::insertImageFromMimeData(const QMimeData *p_source) {
     return;
   }
 
-  ImageInsertDialog dialog(tr("Insert Image From Clipboard"), "", "", "", false, this);
+  ImageInsertDialog dialog(tr("Insert Image From Clipboard"), "", "", "", "", false, this);
   dialog.setImage(image);
   if (dialog.exec() == QDialog::Accepted) {
     enterInsertModeIfApplicable();
@@ -808,10 +820,36 @@ void MarkdownEditor::insertImageFromMimeData(const QMimeData *p_source) {
 }
 
 void MarkdownEditor::insertImageFromUrl(const QString &p_url, bool p_quiet) {
+  // zhangyw add download image from special site
+  auto cursor = m_textEdit->textCursor();
+  auto p_block = cursor.block().previous();
+  QString marker("@@");
+  QString new_referer;
+  if (p_block.isValid() && (p_block.text().startsWith(marker)) && p_block.length() > 10) {
+    new_referer = p_block.text().mid(2, p_block.length() - 1);
+  }
+  // zhangyw add download image from special site
+
+  // zhangyw modify download image from special site
+  ImageInsertDialog dialog(tr("Insert Image From URL"), "", "", "", new_referer, false, this);
+  dialog.setImagePath(p_url);
+  if (dialog.exec() == QDialog::Accepted) {
+    enterInsertModeIfApplicable();
+    if (dialog.getImageSource() == ImageInsertDialog::Source::LocalFile) {
+      insertImageToBufferFromLocalFile(dialog.getImageTitle(), dialog.getImageAltText(),
+                                       dialog.getImagePath(), dialog.getScaledWidth());
+    } else {
+      auto image = dialog.getImage();
+      if (!image.isNull()) {
+        insertImageToBufferFromData(dialog.getImageTitle(), dialog.getImageAltText(), image,
+                                    dialog.getScaledWidth());
+      }
+    }
+  }
   if (p_quiet) {
     insertImageToBufferFromLocalFile("", "", p_url, 0);
   } else {
-    ImageInsertDialog dialog(tr("Insert Image From URL"), "", "", "", false, this);
+    ImageInsertDialog dialog(tr("Insert Image From URL"), "", "", "", "", false, this);
     dialog.setImagePath(p_url);
     if (dialog.exec() == QDialog::Accepted) {
       enterInsertModeIfApplicable();
@@ -1200,7 +1238,25 @@ void MarkdownEditor::fetchImagesToLocalAndReplace(QString &p_text) {
       if (imageUrl.startsWith(QStringLiteral("//"))) {
         imageUrl.prepend(QStringLiteral("https:"));
       }
-      QByteArray data = vte::NetworkAccess::request(QUrl(imageUrl)).m_data;
+
+      // zhangyw add download image from special site
+      auto doc = document();
+      QTextBlock p_block = doc->firstBlock();
+      QString marker("@@");
+      QString new_referer;
+      if (p_block.isValid() && (p_block.text().startsWith(marker)) && p_block.length() > 10) {
+        new_referer = p_block.text().mid(2, p_block.length() - 1);
+      }
+      vte::NetworkAccess::RawHeaderPairs rawHeader;
+      if (new_referer != "") {
+        rawHeader.push_back(qMakePair(QByteArray("referer"), new_referer.toUtf8()));
+      }
+      // zhangyw add download image from special site
+
+      // zhangyw modify download image from special site
+      QByteArray data = vte::NetworkAccess::request(QUrl(imageUrl), rawHeader).m_data;
+      // QByteArray data = vte::NetworkAccess::request(QUrl(imageUrl)).m_data;
+
       if (!data.isEmpty()) {
         // Prefer the suffix from the real data.
         auto suffix = ImageUtils::guessImageSuffix(data);

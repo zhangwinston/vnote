@@ -67,8 +67,8 @@ void EditorConfig::loadCore(const QJsonObject &p_app, const QJsonObject &p_user)
 
   {
     m_toolBarIconSize = READINT(QStringLiteral("toolbar_icon_size"));
-    if (m_toolBarIconSize <= 0) {
-      m_toolBarIconSize = 14;
+    if (m_toolBarIconSize < 0) {
+      m_toolBarIconSize = 0;
     }
   }
 

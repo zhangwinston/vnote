@@ -243,6 +243,27 @@ void NotebookExplorer::newFolder() {
   }
 }
 
+// add by zhangyw for create note quickly without dialog show
+void NotebookExplorer::newNoteQuickly() {
+  auto node = checkNotebookAndGetCurrentExploredFolderNode();
+  if (!node) {
+    return;
+  }
+
+  NewNoteDialog dialog(node, VNoteX::getInst().getMainWindow());
+
+  if (dialog.quickNewNote() == true) {
+    m_nodeExplorer->setCurrentNode(dialog.getNewNode().data());
+
+    // Open it right now.
+    auto paras = QSharedPointer<FileOpenParameters>::create();
+    paras->m_mode = ViewWindowMode::Edit;
+    paras->m_newFile = true;
+    emit VNoteX::getInst().openNodeRequested(dialog.getNewNode().data(), paras);
+  }
+}
+// add by zhangyw for create note quickly without dialog show
+
 void NotebookExplorer::newNote() {
   auto node = checkNotebookAndGetCurrentExploredFolderNode();
   if (!node) {

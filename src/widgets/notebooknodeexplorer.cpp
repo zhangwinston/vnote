@@ -1250,7 +1250,8 @@ QAction *NotebookNodeExplorer::createAction(Action p_act, QObject *p_parent, boo
   switch (p_act) {
   case Action::NewNote:
     act = new QAction(generateMenuActionIcon("new_note.svg"), tr("New &Note"), p_parent);
-    connect(act, &QAction::triggered, this, []() { emit VNoteX::getInst().newNoteRequested(); });
+    connect(act, &QAction::triggered, this,
+            []() { emit VNoteX::getInst().newNoteQuicklyRequested(); });
     WidgetUtils::addActionShortcutText(act, coreConfig.getShortcut(CoreConfig::NewNote));
     break;
 
@@ -1263,8 +1264,46 @@ QAction *NotebookNodeExplorer::createAction(Action p_act, QObject *p_parent, boo
   case Action::Properties:
     act =
         new QAction(generateMenuActionIcon("properties.svg"), tr("&Properties (Rename)"), p_parent);
-    connect(act, &QAction::triggered, this,
-            [this, p_master]() { openCurrentNodeProperties(p_master); });
+    connect(act, &QAction::triggered, this, [this, p_master]() {
+      auto node = p_master ? getCurrentMasterNode() : getCurrentSlaveNode();
+      if (checkInvalidNode(node)) {
+        return;
+      }
+      // modify by zhangyw rename file prepare filename form content
+      int ret = QDialog::Rejected;
+      QString preFileName = "";
+      if (node->hasContent()) {
+        if (node->getName().startsWith(tr("note")) && node->getName().endsWith(tr(".md"))) {
+          QString firstline = "";
+          QFile file(node->fetchAbsolutePath());
+          if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QTextStream in(&file);
+            int i = 0;
+            while (firstline.length() < 1 && in.atEnd() == false && i < 10) {
+              firstline = in.readLine(100);
+              i++;
+            }
+            QString preFileName =
+                firstline.replace(QRegularExpression("[#\\?\\\\*:/,.]"), " ").simplified() + ".md";
+          }
+        }
+
+        if (preFileName.length() > 3) { // contain "*.md"
+          NotePropertiesDialog dialog(node, this->parentWidget(), preFileName);
+          ret = dialog.exec();
+        } else {
+          NotePropertiesDialog dialog(node, VNoteX::getInst().getMainWindow());
+          ret = dialog.exec();
+        }
+      } else {
+        FolderPropertiesDialog dialog(node, VNoteX::getInst().getMainWindow());
+        ret = dialog.exec();
+      }
+      // modify by zhangyw rename file prepare filename form content
+      if (ret == QDialog::Accepted) {
+        setCurrentNode(node);
+      }
+    });
     WidgetUtils::addActionShortcutText(act, coreConfig.getShortcut(CoreConfig::Properties));
     break;
 

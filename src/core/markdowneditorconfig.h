@@ -115,6 +115,11 @@ public:
   bool getSmartTableEnabled() const;
   void setSmartTableEnabled(bool p_enabled);
 
+  qreal getLeadingSpaceOfLineFactor() const;
+  void setLeadingSpaceOfLineFactor(qreal p_factor);
+
+  qreal getLeadingSpaceOfLineInCodeBlockFactor() const;
+  void setLeadingSpaceOfLineInCodeBlockFactor(qreal p_factor);
   int getSmartTableInterval() const;
 
   bool isSpellCheckEnabled() const;
@@ -233,6 +238,11 @@ private:
 
   // Interval time to do smart table format.
   int m_smartTableInterval = 2000;
+
+  // leading space of lines in text
+  qreal m_leading_space_line_factor = 0.0;
+  // leading space of lines in code block
+  qreal m_leading_space_line_code_block_factor = 0.0;
 
   // Override the config in TextEditorConfig.
   bool m_spellCheckEnabled = true;

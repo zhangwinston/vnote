@@ -13,7 +13,10 @@
 #include <QToolButton>
 
 #include "fileopenparameters.h"
+#include "mainwindow.h"
+#include "notebookexplorer.h"
 #include "propertydefs.h"
+#include "sessionconfig.h"
 #include "viewarea.h"
 #include "viewwindow.h"
 #include "widgetsfactory.h"
@@ -45,7 +48,7 @@ const QString ViewSplit::c_actionButtonForegroundName = "widgets#viewsplit#actio
 
 ViewSplit::ViewSplit(const QVector<QSharedPointer<ViewWorkspace>> &p_allWorkspaces,
                      const QSharedPointer<ViewWorkspace> &p_workspace, ID p_id, QWidget *p_parent)
-    : QTabWidget(p_parent), m_id(p_id), m_allWorkspaces(p_allWorkspaces) {
+    : TabWidget(p_parent), m_id(p_id), m_allWorkspaces(p_allWorkspaces) {
   setAcceptDrops(true);
 
   setupUI();
@@ -169,8 +172,22 @@ bool ViewSplit::eventFilter(QObject *p_object, QEvent *p_event) {
       if (mouseEve->button() == Qt::MiddleButton) {
         int idx = tabBar()->tabAt(mouseEve->pos());
         closeTab(idx);
+        return true;
       }
     }
+    // add by zhangyw for new note quickly
+    if (p_event->type() == QEvent::MouseButtonDblClick &&
+        p_event->type() == QEvent::MouseButtonDblClick) {
+      auto mouseEve = static_cast<QMouseEvent *>(p_event);
+      if (mouseEve->button() == Qt::LeftButton) {
+        int idx = tabBar()->tabAt(mouseEve->pos());
+        if (idx == -1) { // no tab covers position
+          emit VNoteX::getInst().newNoteQuicklyRequested();
+          return true;
+        }
+      }
+    }
+    // add by zhangyw for new note quickly
   }
 
   return QTabWidget::eventFilter(p_object, p_event);
@@ -307,7 +324,7 @@ QVector<ViewWindow *> ViewSplit::getAllViewWindows() const {
 int ViewSplit::getViewWindowCount() const { return count(); }
 
 void ViewSplit::addViewWindow(ViewWindow *p_win) {
-  int idx = addTab(p_win, p_win->getIcon(), p_win->getName());
+  int idx = addTab(p_win, p_win->getIcon(), "  " + p_win->getName() + "  ");
   setTabToolTip(idx, p_win->getTitle());
 
   p_win->setViewSplit(this);
@@ -326,7 +343,7 @@ void ViewSplit::addViewWindow(ViewWindow *p_win) {
     auto win = dynamic_cast<ViewWindow *>(sender());
     int idx = indexOf(win);
     Q_ASSERT(idx != -1);
-    setTabText(idx, win->getName());
+    setTabText(idx, "  " + win->getName() + "  ");
   });
 }
 
@@ -1015,3 +1032,30 @@ void ViewSplit::activateNextTab(bool p_backward) {
 
   setCurrentViewWindow(idx);
 }
+
+// add by zhangyw bold the current tab title
+void TabBar::paintEvent(QPaintEvent *p_event) {
+  QStylePainter painter(this);
+  QStyleOptionTab opt;
+  QFont font = this->font();
+
+  for (int i = 0; i < count(); i++) {
+    initStyleOption(&opt, i);
+    painter.drawControl(QStyle::CE_TabBarTabShape, opt);
+    if (QStyle::State_Selected & opt.state) {
+      ViewArea *va = VNoteX::getInst().getMainWindow()->getViewArea();
+
+      painter.save();
+      font.setBold(true);
+      if (va->getCurrentViewSplit() != this->parent()) {
+        font.setItalic(true);
+      }
+      painter.setFont(font);
+      painter.drawControl(QStyle::CE_TabBarTabLabel, opt);
+      painter.restore();
+      continue;
+    } else
+      painter.drawControl(QStyle::CE_TabBarTabLabel, opt);
+  }
+}
+// add by zhangyw bold the current tab title

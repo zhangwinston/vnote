@@ -312,6 +312,9 @@ void DockWidgetHelper::postSetup() {
   updateDockWidgetTabBar();
 
   for (const auto dock : m_docks) {
+    // zhangyw add fix the tabbar icon is not visible
+    connect(dock, &QDockWidget::visibilityChanged, this, &DockWidgetHelper::updateDockWidgetTabBar);
+    // zhangyw add fix the tabbar icon is not visible
     connect(dock, &QDockWidget::dockLocationChanged, this,
             &DockWidgetHelper::updateDockWidgetTabBar);
     connect(dock, &QDockWidget::topLevelChanged, this, &DockWidgetHelper::updateDockWidgetTabBar);
