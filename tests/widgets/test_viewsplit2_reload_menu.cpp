@@ -219,6 +219,7 @@ bool ViewWindow2::eventFilter(QObject *, QEvent *) { return false; }
 void ViewWindow2::keyPressEvent(QKeyEvent *) {}
 void ViewWindow2::wheelEvent(QWheelEvent *) {}
 void ViewWindow2::resizeEvent(QResizeEvent *) {}
+void ViewWindow2::showEvent(QShowEvent *) {}
 
 ServiceLocator &ViewWindow2::getServices() const { return m_services; }
 

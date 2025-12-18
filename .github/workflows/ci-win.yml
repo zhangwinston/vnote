@@ -2,9 +2,9 @@ name: CI-Windows
 
 on:
   push:
-    branches: [ master ]
+    branches: [ refine ]
   pull_request:
-    branches: [ master ]
+    branches: [ refine ]
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
@@ -793,14 +793,14 @@ jobs:
           name: VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.msi
           path: ${{runner.workspace}}/build/VNote*.msi
 
-      - name: Update Continuous Build Release
+      - name: Update Continuous Build Refine
         # Release pushes are EXCLUDED. Without this a `[Release]` push would
         # generate one `stable`-stamped ZIP and then copy that same ZIP to the
         # `continuous-build` prerelease, which (a) makes the two channel
         # assertions unsatisfiable and (b) republishes the official release as a
         # continuous prerelease.
         if: >-
-          github.ref == 'refs/heads/master' &&
+          github.ref == 'refs/heads/refine' &&
           !startsWith(github.event.head_commit.message, '[Release]')
         shell: bash
         working-directory: ${{runner.workspace}}/build
@@ -818,7 +818,7 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Continuous Build" \
             --prerelease \
-            --notes "Continuous build from master ($GITHUB_SHA)." || true
+            --notes "Continuous build from refine ($GITHUB_SHA)." || true
           gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/continuous-build" \
             -F sha="$GITHUB_SHA" -F force=true || true
 
@@ -846,67 +846,4 @@ jobs:
 
           # Upload the stable-named asset.
           gh release upload continuous-build "$STABLE" --clobber
-
-      - name: Compose release artifact list
-        if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
-        shell: pwsh
-        run: |
-          # FORWARD SLASHES ONLY. ncipollo resolves `artifacts:` through the
-          # `glob` package, where "\" is an ESCAPE character rather than a path
-          # separator -- and ${{runner.workspace}} expands to "D:\a\vnote". The
-          # 4.4.2 run passed "D:\a\vnote/build/VNote-4.4.2-win64.zip", glob read
-          # it as "D:avnote/build/...", matched nothing, and the job still went
-          # GREEN while uploading no assets at all.
-          $base = ("${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}").Replace('\', '/')
-
-          # The Qt5 `win64-windows7` variant publishes the ZIP only: it runs no
-          # manifest/delta generation, so naming those files here would ask for
-          # artifacts that are never produced.
-          $required = if ('${{ matrix.config.qt_major }}' -eq '6') {
-            @("$base.zip", "$base.manifest.json", "$base.manifest.json.minisig")
-          } else {
-            @("$base.zip")
-          }
-
-          # The delta is genuinely optional: the first release shipping this
-          # feature has no predecessor manifest to diff against, so the
-          # generator legitimately produces none. Include it only if it exists,
-          # which keeps artifactErrorsFailBuild usable for everything else.
-          $optional = if ('${{ matrix.config.qt_major }}' -eq '6') { @("$base.delta.zip") } else { @() }
-
-          $missing = @($required | Where-Object { -not (Test-Path -LiteralPath $_) })
-          if ($missing) {
-            Write-Error "Required release artifact(s) missing: $($missing -join ', ')"
-            exit 1
-          }
-
-          $list = $required + @($optional | Where-Object { Test-Path -LiteralPath $_ })
-          "RELEASE_ARTIFACTS=$($list -join ',')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          Write-Host "Release artifacts: $($list -join ', ')"
-
-      - name: Release
-        if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
-        uses: ncipollo/release-action@v1.11.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # Both matrix jobs target the same draft (allowUpdates:true):
-          # Qt6 -> ...win64.*, Qt5.15 -> ...win64-windows7.zip
-          #
-          # Composed by the step above rather than written literally, because
-          # the two variants publish different asset sets and every entry must
-          # already exist by the time we get here.
-          artifacts: ${{ env.RELEASE_ARTIFACTS }}
-          # Without this a failed or unmatched upload is only a warning, so a
-          # release that attached NOTHING still reports success -- exactly how
-          # the empty 4.4.2 draft was produced.
-          artifactErrorsFailBuild: true
-          commit: master
-          tag: v${{env.VNOTE_VER}}
-          allowUpdates: true
-          # See the note in ci-linux.yml: release-action replaces the body and
-          # name on update unless told otherwise, so a later platform job would
-          # wipe the release notes set from changes.md.
-          omitBodyDuringUpdate: true
-          omitNameDuringUpdate: true
-          draft: true
 

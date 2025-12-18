@@ -184,7 +184,7 @@ QSharedPointer<vte::MarkdownEditorConfig> MarkdownEditorController::buildMarkdow
   // Wrap the text editor config in a markdown editor config.
   auto editorConfig = QSharedPointer<vte::MarkdownEditorConfig>::create(textEditorConfig);
 
-  applyMarkdownConfigFields(p_mdConfig, editorConfig);
+applyMarkdownConfigFields(p_mdConfig, editorConfig);
 
   return editorConfig;
 }
@@ -300,7 +300,7 @@ MarkdownEditorController::buildMarkdownEditorConfigFromContent(
   // Wrap the text editor config in a markdown editor config.
   auto editorConfig = QSharedPointer<vte::MarkdownEditorConfig>::create(textEditorConfig);
 
-  applyMarkdownConfigFields(p_mdConfig, editorConfig);
+applyMarkdownConfigFields(p_mdConfig, editorConfig);
 
   if (themeWasEmpty) {
     // Honor the empty-content contract: caller passed no theme JSON, so leave

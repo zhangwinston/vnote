@@ -27,6 +27,7 @@ class QAction;
 class QToolBar;
 class QResizeEvent;
 class QTextEdit;
+class QShowEvent;
 class QWheelEvent;
 
 namespace vnotex {
@@ -525,6 +526,7 @@ protected:
   void wheelEvent(QWheelEvent *p_event) Q_DECL_OVERRIDE;
 
   void resizeEvent(QResizeEvent *p_event) Q_DECL_OVERRIDE;
+  void showEvent(QShowEvent *p_event) Q_DECL_OVERRIDE;
 
   // ============ Editor Integration ============
 
@@ -755,6 +757,15 @@ private:
   // shared across both rejection signals (markDirty + save) so a single save
   // burst that fires several signals only pops one modal.
   void showReadOnlyWarning();
+
+  // If this note still has a generated default name ("note" / "笔记" / ...),
+  // offer the first meaningful content line as a new filename. Empty when the
+  // note is ineligible or the user cancels.
+  QString promptSuggestedRename();
+
+  // Rename the notebook file to @p_newName (uniquified on conflict). False
+  // only when the rename itself fails; a no-op (same name) is success.
+  bool applySuggestedRename(const QString &p_newName);
 
   // T28: time-since-last-modal tracker for the shared cooldown. Invalid (not
   // started) until the first modal fires; once started, hasExpired() is the

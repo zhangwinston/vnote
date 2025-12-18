@@ -264,8 +264,18 @@ void MarkdownEditor::typeLink() {
 }
 
 void MarkdownEditor::typeImage() {
-  ImageInsertDialog dialog(tr("Insert Image"), "", "", "", m_services.get<ConfigMgr2>(), true,
-                           this);
+  // zhangyw add download image from special site
+  auto cursor = m_textEdit->textCursor();
+  auto p_block = cursor.block().previous();
+  QString marker("@@");
+  QString new_referer;
+  if (p_block.isValid() && (p_block.text().startsWith(marker)) && p_block.length() > 10) {
+    new_referer = p_block.text().mid(2, p_block.length() - 1);
+  }
+  // zhangyw add download image from special site
+
+  ImageInsertDialog dialog(tr("Insert Image"), "", "", "", m_services.get<ConfigMgr2>(), new_referer,
+                           true, this);
 
   // Try fetch image from clipboard.
   {
@@ -1062,7 +1072,7 @@ void MarkdownEditor::insertImageFromMimeData(const QMimeData *p_source) {
   }
 
   ImageInsertDialog dialog(tr("Insert Image From Clipboard"), "", "", "",
-                           m_services.get<ConfigMgr2>(), false, this);
+                           m_services.get<ConfigMgr2>(), "", false, this);
   dialog.setImage(image);
   if (dialog.exec() == QDialog::Accepted) {
     enterInsertModeIfApplicable();
@@ -1075,8 +1085,19 @@ void MarkdownEditor::insertImageFromUrl(const QString &p_url, bool p_quiet) {
   if (p_quiet) {
     insertImageToBufferFromLocalFile("", "", p_url);
   } else {
+
+    // zhangyw add download image from special site
+    auto cursor = m_textEdit->textCursor();
+    auto p_block = cursor.block().previous();
+    QString marker("@@");
+    QString new_referer;
+    if (p_block.isValid() && (p_block.text().startsWith(marker)) && p_block.length() > 10) {
+      new_referer = p_block.text().mid(2, p_block.length() - 1);
+    }
+    // zhangyw add download image from special site
+
     ImageInsertDialog dialog(tr("Insert Image From URL"), "", "", "", m_services.get<ConfigMgr2>(),
-                             false, this);
+                           new_referer, false, this);
     dialog.setImagePath(p_url);
     if (dialog.exec() == QDialog::Accepted) {
       enterInsertModeIfApplicable();
@@ -1086,7 +1107,7 @@ void MarkdownEditor::insertImageFromUrl(const QString &p_url, bool p_quiet) {
                                          dialog.getImageWidth(), dialog.getImageHeight());
       } else {
         auto image = dialog.getImage();
-        if (!image.isNull()) {
+      if (!image.isNull()) {
           insertImageToBufferFromData(dialog.getImageTitle(), dialog.getImageAltText(), image,
                                       dialog.getImageWidth(), dialog.getImageHeight());
         }
@@ -1486,7 +1507,25 @@ void MarkdownEditor::fetchImagesToLocalAndReplace(QString &p_text) {
       if (imageUrl.startsWith(QStringLiteral("//"))) {
         imageUrl.prepend(QStringLiteral("https:"));
       }
-      QByteArray data = NetworkAccess::request(QUrl(imageUrl)).m_data;
+
+      // zhangyw add download image from special site
+      auto doc = document();
+      QTextBlock p_block = doc->firstBlock();
+      QString marker("@@");
+      QString new_referer;
+      if (p_block.isValid() && (p_block.text().startsWith(marker)) && p_block.length() > 10) {
+        new_referer = p_block.text().mid(2, p_block.length() - 1);
+      }
+      NetworkAccess::RawHeaderPairs rawHeader;
+      if (new_referer != "") {
+        rawHeader.push_back(qMakePair(QByteArray("referer"), new_referer.toUtf8()));
+      }
+      // zhangyw add download image from special site
+
+      // zhangyw modify download image from special site
+      QByteArray data = NetworkAccess::request(QUrl(imageUrl), rawHeader).m_data;
+      // QByteArray data = NetworkAccess::request(QUrl(imageUrl)).m_data;
+
       if (!data.isEmpty()) {
         // Prefer the suffix from the real data.
         auto suffix = ImageUtils::guessImageSuffix(data);

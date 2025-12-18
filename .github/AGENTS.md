@@ -55,6 +55,36 @@ unloadable OpenSSL breaks exactly two things: the update check
 
 ---
 
+## Linux EL8 variant (Qt 5.15, rockylinux:8 container)
+
+`ci-linux-qt5.yml` builds the Qt 5.15 AppImage **inside a `rockylinux:8`
+container**, not on an ubuntu runner: ubuntu-built binaries link glibc 2.35+
+and cannot run on the EL8 (glibc 2.28) workstation this variant exists for.
+Toolchain is the distro Qt 5.15.3 (AppStream) + qtwebengine 5.15.8 (EPEL8 only
+— `epel-release` is therefore mandatory) + gcc-toolset-12 (vxcore's
+`std::filesystem` needs gcc ≥ 9; EL8's default gcc 8.5 would require
+`-lstdc++fs`, which the tree never links). Notes:
+
+- `pack` requires the **Unix Makefiles** generator: the CPack external script
+  runs `<make> DESTDIR=... install`, which ninja cannot parse.
+- `src/Packaging.cmake` appends the `/usr/local/lib64` OpenSSL 3 `-l` args to
+  linuxdeploy only when those files exist (ubuntu Qt6 job), and the GTK3
+  platform theme only when `VNOTE_DEPLOY_GTK3_THEME=ON` (default ON): EL8's
+  Qt ships `libqgtk3.so` but no GTK3, and linuxdeploy aborts on the
+  unresolvable dependency.
+- No libstdc++/OpenSSL bundling: gcc-toolset-12 binaries run against the base
+  EL8 libstdc++ (newer C++ symbols are statically prelinked via
+  `libstdc++_nonshared`), and Qt5 dlopens the system `libssl.so.1.1` /
+  `libcrypto.so.1.1` at runtime — bundling the container's 1.1.1k would shadow
+  the target's patched copy. Consequence: the AppImage is EL8-targeted (newer
+  distros drop OpenSSL 1.1 and lose TLS).
+- The repack mirrors the Qt6 job's `libfontconfig` removal (issue #2712) but
+  deliberately keeps bundled NSS: the target runs the same EL8 stack.
+- `VNOTE_BUILD_TESTS` must stay OFF here: `tests/CMakeLists.txt` hard-requires
+  Qt6. Same constraint as the Qt5 Windows job.
+
+---
+
 ## Update artifacts
 
 Release CI still publishes manifests, minisign signatures and delta ZIPs (see

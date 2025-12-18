@@ -11,6 +11,7 @@ target_sources(vnote PRIVATE
     headingslugger.cpp headingslugger.h
     htmlutils.cpp htmlutils.h
     notebookpathhelpers.cpp notebookpathhelpers.h
+    noteautorename.cpp noteautorename.h
     pathutils.cpp pathutils.h
     qtcompat.h
     scrollpreservationpolicy.cpp scrollpreservationpolicy.h

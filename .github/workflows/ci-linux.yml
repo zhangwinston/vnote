@@ -2,9 +2,9 @@ name: CI-Linux
 
 on:
   push:
-    branches: [ master ]
+    branches: [ refine ]
   pull_request:
-    branches: [ master ]
+    branches: [ refine ]
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
@@ -234,7 +234,7 @@ jobs:
           path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-linux-x64.AppImage
 
       - name: Update Continuous Build Release
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/refine'
         shell: bash
         working-directory: ${{runner.workspace}}/build
         env:
@@ -250,7 +250,7 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Continuous Build" \
             --prerelease \
-            --notes "Continuous build from master ($GITHUB_SHA)." || true
+            --notes "Continuous build from refine ($GITHUB_SHA)." || true
           gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/continuous-build" \
             -F sha="$GITHUB_SHA" -F force=true || true
 
@@ -267,22 +267,3 @@ jobs:
           # Upload the stable-named asset.
           gh release upload continuous-build "VNote-continuous-linux-x64.AppImage" --clobber
 
-      - name: Release
-        if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
-        uses: ncipollo/release-action@v1.11.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-linux-x64.AppImage
-          commit: master
-          tag: v${{env.VNOTE_VER}}
-          allowUpdates: true
-          # This step passes no `body`/`name`, and release-action REPLACES both
-          # on update by default. Every platform job targets the same draft, so
-          # without these the last job to run blanks whatever release notes were
-          # already set -- which is exactly how v4.4.2 ended up with an empty
-          # body and, in turn, a Gitee mirror that fell back to the bare tag
-          # name. Notes are written by hand from changes.md; see the
-          # `release-version` skill.
-          omitBodyDuringUpdate: true
-          omitNameDuringUpdate: true
-          draft: true

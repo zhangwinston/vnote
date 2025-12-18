@@ -41,9 +41,10 @@ int positiveIntOrZero(const QLineEdit *p_edit) {
 
 ImageInsertDialog::ImageInsertDialog(const QString &p_title, const QString &p_imageTitle,
                                      const QString &p_imageAlt, const QString &p_imagePath,
-                                     ConfigMgr2 *p_configMgr, bool p_browserEnabled,
-                                     QWidget *p_parent)
-    : Dialog(p_parent), m_browserEnabled(p_browserEnabled), m_configMgr(p_configMgr) {
+                                     ConfigMgr2 *p_configMgr, const QString &p_referer,
+                                     bool p_browserEnabled, QWidget *p_parent)
+    : Dialog(p_parent), m_browserEnabled(p_browserEnabled), m_configMgr(p_configMgr),
+      m_referer(p_referer) {
   m_imagePathCheckTimer = new QTimer(this);
   m_imagePathCheckTimer->setSingleShot(true);
   m_imagePathCheckTimer->setInterval(500);
@@ -174,7 +175,16 @@ void ImageInsertDialog::checkImagePathInput() {
               &ImageInsertDialog::handleImageDownloaded);
     }
 
-    m_downloader->requestAsync(url);
+    // zhangyw add download image from special site
+    NetworkAccess::RawHeaderPairs rawHeader;
+    if (m_referer != "") {
+      rawHeader.push_back(qMakePair(QByteArray("referer"), m_referer.toUtf8()));
+    }
+    // zhangyw add download image from special site
+
+    // zhangyw modify download image from special site
+    m_downloader->requestAsync(url, rawHeader);
+    // m_downloader->requestAsync(url);
   }
 
   m_imageTitleEdit->setText(QFileInfo(text).baseName());

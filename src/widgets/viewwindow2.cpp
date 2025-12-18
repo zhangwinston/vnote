@@ -6,7 +6,9 @@
 #include <QDragEnterEvent>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QKeyEvent>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
@@ -15,7 +17,9 @@
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QShortcut>
+#include <QShowEvent>
 #include <QTextEdit>
+#include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -28,6 +32,7 @@
 #include <core/nodeidentifier.h>
 #include <core/servicelocator.h>
 #include <core/services/bufferservice.h>
+#include <core/services/notebookcoreservice.h>
 #include <core/widgetconfig.h>
 
 #include <gui/services/themeservice.h>
@@ -35,6 +40,9 @@
 #include <gui/utils/iconutils.h>
 #include <gui/utils/textcursorpreserver.h>
 #include <gui/utils/widgetutils.h>
+
+#include <utils/noteautorename.h>
+#include <utils/pathutils.h>
 
 #include "../utils/scrollpreservationpolicy.h"
 
@@ -332,6 +340,16 @@ bool ViewWindow2::aboutToClose(bool p_force) {
     if (bufferService) {
       bufferService->syncNow(m_buffer.id());
       m_editorDirty = false;
+    }
+  }
+
+  // Auto-saved default-named notes are unmodified, so the Save/Discard prompt
+  // above never runs. Offer a first-line rename here instead. Cancelling the
+  // dialog still closes the window; force-close skips it.
+  if (!p_force) {
+    const QString renameTo = promptSuggestedRename();
+    if (!renameTo.isEmpty()) {
+      applySuggestedRename(renameTo);
     }
   }
 
@@ -764,6 +782,12 @@ bool ViewWindow2::save() {
     return false;
   }
 
+  // Prompt before writing so a close-with-Save path only shows one rename
+  // dialog (aboutToClose's unmodified branch is skipped after a successful
+  // save that already renamed, or after Discard). Auto-save does not call
+  // this method.
+  const QString renameTo = promptSuggestedRename();
+
   // Sync editor content to vxcore buffer first.
   auto *bufferService = m_services.get<BufferService>();
   if (bufferService) {
@@ -784,6 +808,9 @@ bool ViewWindow2::save() {
     // FileChanged ignore or FileMissing token), so future changes re-prompt.
     m_externalChangeDismissed = false;
     // statusChanged() is emitted by onBufferModifiedChanged() via BufferService signal.
+    if (!renameTo.isEmpty()) {
+      applySuggestedRename(renameTo);
+    }
   } else {
     // Save failed — restore dirty state.
     m_editorDirty = true;
@@ -792,6 +819,74 @@ bool ViewWindow2::save() {
   }
 
   return ok;
+}
+
+QString ViewWindow2::promptSuggestedRename() {
+  if (!m_buffer.isValid() || m_buffer.isReadOnly()) {
+    return QString();
+  }
+
+  const NodeIdentifier &nodeId = m_buffer.nodeId();
+  if (!nodeId.isValid() || nodeId.isVirtual()) {
+    return QString();
+  }
+
+  const QString currentName = getName();
+  const QString suggested = NoteAutoRename::suggestedFileName(currentName, getLatestContent());
+  if (suggested.isEmpty()) {
+    return QString();
+  }
+
+  bool ok = false;
+  QString name =
+      QInputDialog::getText(this, tr("Rename Note"), tr("Name:"), QLineEdit::Normal, suggested, &ok)
+          .trimmed();
+  if (!ok || name.isEmpty()) {
+    return QString();
+  }
+
+  const QString currentSuffix = QFileInfo(currentName).suffix();
+  if (QFileInfo(name).completeSuffix().isEmpty() && !currentSuffix.isEmpty()) {
+    name += QLatin1Char('.') + currentSuffix;
+  }
+
+  if (!PathUtils::isLegalFileName(name)) {
+    showMessage(tr("Invalid file name: %1").arg(name));
+    return QString();
+  }
+  return name;
+}
+
+bool ViewWindow2::applySuggestedRename(const QString &p_newName) {
+  if (p_newName.isEmpty() || !m_buffer.isValid()) {
+    return false;
+  }
+
+  const NodeIdentifier nodeId = m_buffer.nodeId();
+  const QString currentName = getName();
+  if (p_newName.compare(currentName, Qt::CaseInsensitive) == 0) {
+    return true;
+  }
+
+  auto *notebooks = m_services.get<NotebookCoreService>();
+  if (!notebooks) {
+    return false;
+  }
+
+  QString uniqueName =
+      notebooks->getAvailableName(nodeId.notebookId, nodeId.parentPath(), p_newName);
+  if (uniqueName.isEmpty()) {
+    uniqueName = p_newName;
+  }
+  if (uniqueName.compare(currentName, Qt::CaseInsensitive) == 0) {
+    return true;
+  }
+
+  if (!notebooks->renameFile(nodeId.notebookId, nodeId.relativePath, uniqueName)) {
+    showMessage(tr("Failed to rename note to \"%1\".").arg(uniqueName));
+    return false;
+  }
+  return true;
 }
 
 void ViewWindow2::reinterpretWithEncoding(const QString &p_codecName) {
@@ -1620,6 +1715,15 @@ void ViewWindow2::updateContentMargins() {
 void ViewWindow2::resizeEvent(QResizeEvent *p_event) {
   QFrame::resizeEvent(p_event);
   applyReadableWidth();
+}
+
+void ViewWindow2::showEvent(QShowEvent *p_event) {
+  QFrame::showEvent(p_event);
+  // Session-restored / background tabs may have skipped a usable resize while
+  // hidden; re-apply when the window becomes visible, and once more after the
+  // parent layout (main window / docks) finishes settling.
+  applyReadableWidth();
+  QTimer::singleShot(0, this, [this]() { applyReadableWidth(); });
 }
 
 bool ViewWindow2::eventFilter(QObject *p_obj, QEvent *p_event) {

@@ -1235,6 +1235,7 @@ vnotex--ViewWindow2 QToolBar[ViewWindowToolBar="true"] {
 vnotex--ViewSplit2 QTabBar::tab:selected {
     color: @widgets#viewsplit#tabbar#tab#selected#fg;
     background-color: @widgets#viewsplit#tabbar#tab#selected#bg;
+    font-weight: bold;
 }
 
 vnotex--ViewSplit2 QTabBar[ViewSplitFlash="true"]::tab:selected {

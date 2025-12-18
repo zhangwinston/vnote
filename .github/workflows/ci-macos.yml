@@ -2,9 +2,9 @@ name: CI-MacOS
 
 on:
   push:
-    branches: [ master ]
+    branches: [ refine ]
   pull_request:
-    branches: [ master ]
+    branches: [ refine ]
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
@@ -197,34 +197,43 @@ jobs:
           ctest --rerun-failed --extra-verbose || true
         working-directory: ${{runner.workspace}}/build
 
-      - name: Codesign Bundle
-        # Extract the secrets we defined earlier as environment variables
+      - name: Package and Codesign
+        # Signing secrets live in the Mac-code-sign environment. When they are
+        # absent (fork PR, or environment not configured), we still produce an
+        # unsigned DMG so CI can pass.
         env:
           MACOS_CERTIFICATE: ${{ secrets.CLI_MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.CLI_MACOS_CERTIFICATE_PWD }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.CLI_MACOS_CERTIFICATE_NAME }}
-          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.CLI_MACOS_CERTIFICATE }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.CLI_MACOS_CERTIFICATE_PWD }}
         run: |
-          # Turn our base64-encoded certificate back to a regular .p12 file
-          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+          set -e
+          DMG_NAME="VNote-${{env.VNOTE_VER}}-mac-${{matrix.config.arch}}.dmg"
 
-          # We need to create a new keychain, otherwise using the certificate will prompt
-          # with a UI dialog asking for the certificate password, which we can't
-          # use in a headless CI environment
-          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          if [ -n "$MACOS_CERTIFICATE" ] && [ -n "$MACOS_CERTIFICATE_PWD" ] && [ -n "$MACOS_CERTIFICATE_NAME" ]; then
+            echo "Certificate secrets found — codesigning app bundle"
 
-          echo "Codesigning main app bundle"
-          codesign --force --deep -s "$MACOS_CERTIFICATE_NAME" --entitlements ${{github.workspace}}/package/entitlements.xml --options runtime ./src/VNote.app
-          codesign -v -vvv ./src/VNote.app
+            # Turn our base64-encoded certificate back to a regular .p12 file
+            echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+
+            # We need to create a new keychain, otherwise using the certificate will prompt
+            # with a UI dialog asking for the certificate password, which we can't
+            # use in a headless CI environment
+            security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+            security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+
+            codesign --force --deep -s "$MACOS_CERTIFICATE_NAME" --entitlements ${{github.workspace}}/package/entitlements.xml --options runtime ./src/VNote.app
+            codesign -v -vvv ./src/VNote.app
+          else
+            echo "WARNING: MACOS signing secrets not configured — skipping codesign (unsigned build)"
+          fi
 
           # Spotlight / XProtect can hold handles on freshly codesigned bundle
           # contents, causing `hdiutil create` to fail with "Resource busy".
           # Flush filesystem buffers + wait a beat, then retry with backoff.
-          DMG_NAME="VNote-${{env.VNOTE_VER}}-mac-${{matrix.config.arch}}.dmg"
           sync
           sleep 5
           for attempt in 1 2 3 4 5; do
@@ -241,8 +250,12 @@ jobs:
             fi
             sleep $((attempt * 10))
           done
-          codesign --force --deep -s "$MACOS_CERTIFICATE_NAME" --entitlements ${{github.workspace}}/package/entitlements.xml --options runtime "./$DMG_NAME"
-          codesign -v -vvv "./$DMG_NAME"
+
+          if [ -n "$MACOS_CERTIFICATE" ] && [ -n "$MACOS_CERTIFICATE_PWD" ] && [ -n "$MACOS_CERTIFICATE_NAME" ]; then
+            echo "Codesigning DMG"
+            codesign --force --deep -s "$MACOS_CERTIFICATE_NAME" --entitlements ${{github.workspace}}/package/entitlements.xml --options runtime "./$DMG_NAME"
+            codesign -v -vvv "./$DMG_NAME"
+          fi
 
         working-directory: ${{runner.workspace}}/build
 
@@ -258,7 +271,7 @@ jobs:
           path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-mac-${{matrix.config.arch}}.dmg
 
       - name: Update Continuous Build Release
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/refine'
         shell: bash
         working-directory: ${{runner.workspace}}/build
         env:
@@ -274,7 +287,7 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Continuous Build" \
             --prerelease \
-            --notes "Continuous build from master ($GITHUB_SHA)." || true
+            --notes "Continuous build from refine ($GITHUB_SHA)." || true
           gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/continuous-build" \
             -F sha="$GITHUB_SHA" -F force=true || true
 
@@ -291,18 +304,3 @@ jobs:
           # Upload the stable-named asset.
           gh release upload continuous-build "VNote-continuous-mac-universal.dmg" --clobber
 
-      - name: Release
-        if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
-        uses: ncipollo/release-action@v1.11.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          artifacts: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-mac-${{matrix.config.arch}}.dmg
-          commit: master
-          tag: v${{env.VNOTE_VER}}
-          allowUpdates: true
-          # See the note in ci-linux.yml: release-action replaces the body and
-          # name on update unless told otherwise, so a later platform job would
-          # wipe the release notes set from changes.md.
-          omitBodyDuringUpdate: true
-          omitNameDuringUpdate: true
-          draft: true

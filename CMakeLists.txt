@@ -58,6 +58,33 @@ if(WIN32)
 endif()
 
 set(QHOTKEY_INSTALL OFF CACHE BOOL "Disable installing QHotKey" FORCE)
+
+# Include GNUInstallDirs at THIS (root) scope so the install-dir variables are
+# defined for every sibling scope below (src/, libs/vtextedit/src/, ...). The
+# submodules each include(GNUInstallDirs) too, but in their OWN scopes: the
+# <dir> variables are plain variables there (DATADIR and friends are set with
+# only an EMPTY cache entry via the module's fallback macro), so they never
+# reach src/CMakeLists.txt's install(DESTINATION ${CMAKE_INSTALL_DATADIR}),
+# which then resolves empty -- observed as a hard "install FILES given no
+# DESTINATION" configure error on EL8's CMake 3.26. Including it here (after
+# the WIN32 CMAKE_INSTALL_BINDIR pin above, so the Windows flat layout keeps
+# winning) makes the layout deterministic on every platform.
+include(GNUInstallDirs)
+
+# Qt5's imported tool targets (Qt5::moc / Qt5::rcc / Qt5::uic) are created by
+# the FIRST find_package(Qt5 COMPONENTS Core) -- in whichever directory that
+# happens to be -- and imported targets are only visible to their creating
+# directory and its children. Non-Qt C++ targets elsewhere (cmark, qmsetup's
+# syscmdline, ...) are still scanned by the global CMAKE_AUTOMOC/AUTORCC/
+# AUTOUIC below, whose generate step then aborts with "Could not find <tool>
+# executable target Qt5::<tool>" because the tool targets never reached that
+# scope (autogen has no PATH fallback). Find Qt5 Core HERE, at the root
+# scope, so the tool targets are visible to every subdirectory. Qt6's tool
+# targets are GLOBAL, hence the Qt5-only guard.
+if(NOT QT_DEFAULT_MAJOR_VERSION GREATER 5)
+    find_package(Qt5 REQUIRED COMPONENTS Core)
+endif()
+
 add_subdirectory(libs)
 
 # -----------------------------------------------------------------------------

@@ -61,6 +61,8 @@ void MarkdownEditorConfig::fromJson(const QJsonObject &p_jobj) {
   m_autoFoldPreviewedBlocksEnabled = READBOOL(QStringLiteral("autoFoldPreviewedBlocks"));
 
   m_spellCheckEnabled = READBOOL(QStringLiteral("spellCheck"));
+  m_leading_space_line_code_block_factor =
+      READREAL(QStringLiteral("leading_space_line_code_block_factor"));
 
   {
     m_inplacePreviewSources = InplacePreviewSource::NoInplacePreview;
@@ -106,6 +108,8 @@ QJsonObject MarkdownEditorConfig::toJson() const {
   obj[QStringLiteral("alignTableSource")] = m_alignTableSourceEnabled;
   obj[QStringLiteral("autoFoldPreviewedBlocks")] = m_autoFoldPreviewedBlocksEnabled;
   obj[QStringLiteral("spellCheck")] = m_spellCheckEnabled;
+  obj[QStringLiteral("leading_space_line_code_block_factor")] =
+      m_leading_space_line_code_block_factor;
 
   {
     QStringList srcs;
@@ -338,6 +342,13 @@ bool MarkdownEditorConfig::getAutoFoldPreviewedBlocksEnabled() const {
 
 void MarkdownEditorConfig::setAutoFoldPreviewedBlocksEnabled(bool p_enabled) {
   updateConfig(m_autoFoldPreviewedBlocksEnabled, p_enabled, this);
+}
+qreal MarkdownEditorConfig::getLeadingSpaceOfLineInCodeBlockFactor() const {
+  return m_leading_space_line_code_block_factor;
+}
+
+void MarkdownEditorConfig::setLeadingSpaceOfLineInCodeBlockFactor(qreal factor) {
+  updateConfig(m_leading_space_line_code_block_factor, factor, this);
 }
 
 bool MarkdownEditorConfig::isSpellCheckEnabled() const { return m_spellCheckEnabled; }

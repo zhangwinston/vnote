@@ -56,9 +56,10 @@ private slots:
   void testBuildMarkdownEditorConfigFromContent_emptyContent();
   void testBuildMarkdownEditorConfigFromContent_tableSourceOnByDefault();
   void testBuildMarkdownEditorConfigFromContent_tableSourceOff();
-  void testBuildMarkdownEditorConfigFromContent_alignTableSource();
+void testBuildMarkdownEditorConfigFromContent_alignTableSource();
   void testBuildMarkdownEditorConfig_alignTableSource();
   void testBuildMarkdownEditorConfig_autoFoldPreviewedBlocks();
+  void testBuildMarkdownEditorConfigFromContent_codeBlockLeadingFactor();
 
   // ============ Group 4: prepareBufferState (static, requires vxcore) ============
 
@@ -238,6 +239,19 @@ void TestMarkdownEditorController::
   QVERIFY(!config.isNull());
   QVERIFY2(config->m_inplacePreviewSources & vte::MarkdownEditorConfig::Table,
            "the interactive table sheet must be on by default");
+}
+
+void TestMarkdownEditorController::testBuildMarkdownEditorConfigFromContent_codeBlockLeadingFactor() {
+  auto ec = makeEditorConfig();
+  auto &mdConfig = ec.getMarkdownEditorConfig();
+
+  mdConfig.setLeadingSpaceOfLineInCodeBlockFactor(0.2);
+
+  auto config = MarkdownEditorController::buildMarkdownEditorConfigFromContent(
+      ec, mdConfig, QString(), QStringLiteral("default"), 1.0, 0);
+
+  QVERIFY(!config.isNull());
+  QCOMPARE(config->m_leading_space_line_code_block_factor, 0.2);
 }
 
 void TestMarkdownEditorController::testBuildMarkdownEditorConfigFromContent_tableSourceOff() {
