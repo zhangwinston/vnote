@@ -49,6 +49,7 @@ public slots:
   void newFolder();
 
   void newNote();
+  void newNoteQuickly();
 
   void newQuickNote();
 

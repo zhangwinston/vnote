@@ -4,7 +4,7 @@
 #include "bundlenotebookconfigmgr.h"
 
 #include <QDateTime>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QVector>
 
 #include <core/global.h>
@@ -160,7 +160,7 @@ private:
 
   static bool s_initialized;
 
-  static QVector<QRegExp> s_externalNodeExcludePatterns;
+  static QVector<QRegularExpression> s_externalNodeExcludePatterns;
 
   // Name of the node's config file.
   static const QString c_nodeConfigName;

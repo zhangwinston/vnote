@@ -2,9 +2,9 @@ name: CI-Windows
 
 on:
   push:
-    branches: [ master ]
+    branches: [ refine ]
   pull_request:
-    branches: [ master ]
+    branches: [ refine ]
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
@@ -102,14 +102,14 @@ jobs:
           path: ${{runner.workspace}}/build/VNote*.msi
 
       - name: Update Tag
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/refine'
         shell: bash
         run: |
           git tag --force continuous-build ${GITHUB_SHA}
           git push --force --tags
 
       - name: Update Continuous Build Release
-        if: github.ref == 'refs/heads/master'
+        if: github.ref == 'refs/heads/refine'
         uses: johnwbyrd/update-release@v1.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -119,13 +119,13 @@ jobs:
           tag: continuous-build
 
       - name: Release
-        if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
+        if: github.ref == 'refs/heads/refine' && startsWith(github.event.head_commit.message, '[Release]')
         uses: ncipollo/release-action@v1.11.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # glob not supported
           artifacts: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}
-          commit: master
+          commit: refine
           tag: v${{env.VNOTE_VER}}
           allowUpdates: true
           draft: true

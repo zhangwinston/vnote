@@ -270,6 +270,36 @@ void MainWindow::setupNotebookExplorer() {
   // This function is disabled during migration. Use MainWindow2 instead.
   // m_notebookExplorer = new NotebookExplorer2(this);
 
+  // refine zhangyw 
+  // m_notebookExplorer = new NotebookExplorer(this);
+  // connect(&VNoteX::getInst(), &VNoteX::newNotebookRequested, m_notebookExplorer,
+  //         &NotebookExplorer::newNotebook);
+  // connect(&VNoteX::getInst(), &VNoteX::newNotebookFromFolderRequested, m_notebookExplorer,
+  //         &NotebookExplorer::newNotebookFromFolder);
+  // connect(&VNoteX::getInst(), &VNoteX::importNotebookRequested, m_notebookExplorer,
+  //         &NotebookExplorer::importNotebook);
+  // connect(&VNoteX::getInst(), &VNoteX::newFolderRequested, m_notebookExplorer,
+  //         &NotebookExplorer::newFolder);
+  // connect(&VNoteX::getInst(), &VNoteX::newNoteRequested, m_notebookExplorer,
+  //         &NotebookExplorer::newNote);
+  // // add by zhangyw for shortcut of new note quickly
+  // connect(&VNoteX::getInst(), &VNoteX::newNoteQuicklyRequested, m_notebookExplorer,
+  //         &NotebookExplorer::newNoteQuickly);
+  // // add by zhangyw for shortcut of new note quickly
+  // connect(&VNoteX::getInst(), &VNoteX::newQuickNoteRequested, m_notebookExplorer,
+  //         &NotebookExplorer::newQuickNote);
+  // connect(&VNoteX::getInst(), &VNoteX::importFileRequested, m_notebookExplorer,
+  //         &NotebookExplorer::importFile);
+  // connect(&VNoteX::getInst(), &VNoteX::importFolderRequested, m_notebookExplorer,
+  //         &NotebookExplorer::importFolder);
+  // connect(&VNoteX::getInst(), &VNoteX::manageNotebooksRequested, m_notebookExplorer,
+  //         &NotebookExplorer::manageNotebooks);
+  // connect(&VNoteX::getInst(), &VNoteX::locateNodeRequested, this, [this](Node *p_node) {
+  //   m_dockWidgetHelper.activateDock(DockWidgetHelper::NavigationDock);
+  //   m_notebookExplorer->locateNode(p_node);
+  // });
+// refine with linespace/icons/markdown display/image download/find or replace LF
+
   // Set up NotebookMgr
   // auto &notebookMgr = VNoteX::getInst().getNotebookMgr();
   // m_notebookExplorer->setNotebookMgr(&notebookMgr);

@@ -27,8 +27,8 @@ public:
   enum Source { LocalFile, ImageData };
 
   ImageInsertDialog(const QString &p_title, const QString &p_imageTitle, const QString &p_imageAlt,
-                    const QString &p_imagePath, bool p_browserEnabled = true,
-                    QWidget *p_parent = nullptr);
+                    const QString &p_imagePath, const QString &p_referer,
+                    bool p_browserEnabled = true, QWidget *p_parent = nullptr);
 
   QString getImageTitle() const;
 
@@ -70,6 +70,7 @@ private:
 
   Source m_source = Source::LocalFile;
 
+  QString m_referer = "";
   QLineEdit *m_imagePathEdit = nullptr;
 
   QPushButton *m_browseBtn = nullptr;

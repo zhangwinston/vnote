@@ -276,6 +276,11 @@ void DockWidgetHelper::postSetup() {
     if (!dock) {
       continue;
     }
+
+    // zhangyw add fix the tabbar icon is not visible
+    connect(dock, &QDockWidget::visibilityChanged, this, &DockWidgetHelper::updateDockWidgetTabBar);
+    // zhangyw add fix the tabbar icon is not visible
+
     connect(dock, &QDockWidget::dockLocationChanged, this,
             &DockWidgetHelper::updateDockWidgetTabBar);
     connect(dock, &QDockWidget::topLevelChanged, this, &DockWidgetHelper::updateDockWidgetTabBar);
@@ -342,6 +347,7 @@ bool DockWidgetHelper::eventFilter(QObject *p_obj, QEvent *p_event) {
     // The QTabBar of the tabified dock widgets does not show tooltip due to Qt's internal
     // implementation.
     auto helpEve = static_cast<QHelpEvent *>(p_event);
+    auto tabBar = static_cast<QTabBar *>(p_obj);
     int idx = tabBar->tabAt(helpEve->pos());
     bool done = false;
     if (idx > -1) {

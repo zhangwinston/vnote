@@ -74,6 +74,7 @@ signals:
   // The handler should determine in which folder this note belongs to.
   void newNoteRequested();
 
+  void newNoteQuicklyRequested();
   // Requested to new a quick note (maybe in current folder).
   void newQuickNoteRequested();
 

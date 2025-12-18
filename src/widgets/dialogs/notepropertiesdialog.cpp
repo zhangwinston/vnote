@@ -23,6 +23,18 @@ NotePropertiesDialog::NotePropertiesDialog(Node *p_node, QWidget *p_parent)
   m_infoWidget->getNameLineEdit()->setFocus();
 }
 
+// add by zhangyw for create NodeInfoWidget with new file name
+NotePropertiesDialog::NotePropertiesDialog(Node *p_node, QWidget *p_parent, QString newName)
+    : ScrollDialog(p_parent), m_node(p_node) {
+  Q_ASSERT(m_node);
+
+  setupUI(newName);
+
+  LineEdit::selectBaseName(m_infoWidget->getNameLineEdit());
+  m_infoWidget->getNameLineEdit()->setFocus();
+}
+// add by zhangyw for create NodeInfoWidget with new file name
+
 void NotePropertiesDialog::setupUI() {
   setupNodeInfoWidget(this);
   setCentralWidget(m_infoWidget);
@@ -32,9 +44,25 @@ void NotePropertiesDialog::setupUI() {
   setWindowTitle(tr("%1 Properties").arg(m_node->getName()));
 }
 
+// add by zhangyw for create NodeInfoWidget with new file name
+void NotePropertiesDialog::setupUI(QString newName) {
+  setupNodeInfoWidget(this, newName);
+  setCentralWidget(m_infoWidget);
+
+  setDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+  setWindowTitle(tr("Rename: %1").arg(m_node->getName()));
+}
+// add by zhangyw for create NodeInfoWidget with new file name
+
 void NotePropertiesDialog::setupNodeInfoWidget(QWidget *p_parent) {
   m_infoWidget = new NodeInfoWidget(m_node, p_parent);
 }
+
+// add by zhangyw initial funtion for create NodeInfoWidget with new file name
+void NotePropertiesDialog::setupNodeInfoWidget(QWidget *p_parent, QString newName) {
+  m_infoWidget = new NodeInfoWidget(m_node, newName, p_parent);
+}
+// add by zhangyw initial funtion for create NodeInfoWidget with new file name
 
 bool NotePropertiesDialog::validateInputs() {
   bool valid = true;

@@ -104,6 +104,32 @@ void NewNoteDialog::acceptedButtonClicked() {
   }
 }
 
+// add by zhangyw for create note quickly without dialog
+bool NewNoteDialog::quickNewNote() {
+  // LEGACY: NoteTemplateSelector disabled - requires ServiceLocator migration
+  // s_lastTemplate = m_templateSelector->getCurrentTemplate();
+
+  {
+    auto fileType = FileTypeHelper::getInst().getFileTypeByName(m_infoWidget->getFileType()).m_type;
+    ConfigMgr::getInst().getWidgetConfig().setNewNoteDefaultFileType(static_cast<int>(fileType));
+  }
+
+  if (validateInputs()) {
+    Notebook *notebook = const_cast<Notebook *>(m_infoWidget->getNotebook());
+    Node *parentNode = const_cast<Node *>(m_infoWidget->getParentNode());
+    QString errMsg;
+    // LEGACY: Pass empty template content - template functionality requires migration
+    m_newNode = newNote(notebook, parentNode, m_infoWidget->getName(), QString(), errMsg);
+    if (!m_newNode) {
+      setInformationText(errMsg, ScrollDialog::InformationLevel::Error);
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+// add by zhangyw for create note quickly without dialog
+
 QSharedPointer<Node> NewNoteDialog::newNote(Notebook *p_notebook, Node *p_parentNode,
                                             const QString &p_name, const QString &p_templateContent,
                                             QString &p_errMsg) {

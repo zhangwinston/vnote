@@ -4170,6 +4170,11 @@ Remove them from the configuration?</source>
         <source>Modified Time: %1</source>
         <translation type="vanished">修改时间: %1</translation>
     </message>
+    <message>
+        <location filename="../../../widgets/notebooknodeexplorer.cpp" line="1278"/>
+        <source>note</source>
+        <translation>笔记</translation>
+    </message>
 </context>
 <context>
     <name>vnotex::NotebookSelector</name>
@@ -5556,6 +5561,11 @@ Description: %3</source>
         <location filename="../../../widgets/viewarea.cpp" line="988"/>
         <source>No recently closed file</source>
         <translation>没有最近关闭文件</translation>
+    </message>
+    <message>
+        <location filename="../../../widgets/viewarea.cpp" line="540"/>
+        <source>note</source>
+        <translation>笔记</translation>
     </message>
 </context>
 <context>

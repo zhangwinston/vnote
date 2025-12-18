@@ -66,6 +66,9 @@ void MarkdownEditorConfig::fromJson(const QJsonObject &p_jobj) {
   m_smartTableInterval = READINT(QStringLiteral("smartTableInterval"));
 
   m_spellCheckEnabled = READBOOL(QStringLiteral("spellCheck"));
+  m_leading_space_line_factor = READREAL(QStringLiteral("leading_space_line_factor"));
+  m_leading_space_line_code_block_factor =
+      READREAL(QStringLiteral("leading_space_line_code_block_factor"));
 
   m_editorOverriddenFontFamily = READSTR(QStringLiteral("editorOverriddenFontFamily"));
 
@@ -116,6 +119,9 @@ QJsonObject MarkdownEditorConfig::toJson() const {
   obj[QStringLiteral("smartTableInterval")] = m_smartTableInterval;
   obj[QStringLiteral("spellCheck")] = m_spellCheckEnabled;
   obj[QStringLiteral("editorOverriddenFontFamily")] = m_editorOverriddenFontFamily;
+  obj[QStringLiteral("leading_space_line_factor")] = m_leading_space_line_factor;
+  obj[QStringLiteral("leading_space_line_code_block_factor")] =
+      m_leading_space_line_code_block_factor;
 
   {
     QStringList srcs;
@@ -393,6 +399,20 @@ void MarkdownEditorConfig::setSmartTableEnabled(bool p_enabled) {
 
 int MarkdownEditorConfig::getSmartTableInterval() const { return m_smartTableInterval; }
 
+// zhangyw add space of lines/codeblock
+qreal MarkdownEditorConfig::getLeadingSpaceOfLineFactor() const {
+  return m_leading_space_line_factor;
+}
+void MarkdownEditorConfig::setLeadingSpaceOfLineFactor(qreal factor) {
+  updateConfig(m_leading_space_line_factor, factor, this);
+}
+qreal MarkdownEditorConfig::getLeadingSpaceOfLineInCodeBlockFactor() const {
+  return m_leading_space_line_code_block_factor;
+}
+void MarkdownEditorConfig::setLeadingSpaceOfLineInCodeBlockFactor(qreal factor) {
+  updateConfig(m_leading_space_line_code_block_factor, factor, this);
+}
+// zhangyw add space of lines/codeblock
 bool MarkdownEditorConfig::isSpellCheckEnabled() const { return m_spellCheckEnabled; }
 
 void MarkdownEditorConfig::setSpellCheckEnabled(bool p_enabled) {
