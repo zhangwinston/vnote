@@ -324,6 +324,25 @@ else()
         list(APPEND CPACK_GENERATOR External)
         set(VX_APPIMAGE_DEST_DIR "${CPACK_PACKAGE_DIRECTORY}/_CPack_Packages/Linux/External/AppImage")
         set(VX_APPIMAGE_DESKTOP_FILE "${VX_APPIMAGE_DEST_DIR}${CMAKE_INSTALL_PREFIX}/share/applications/vnote.desktop")
+        # linuxdeploy aborts when a -l path is missing or its own dependencies
+        # cannot be resolved. The OpenSSL 3 pair lives in /usr/local/lib64 only
+        # on CI images that build it from source; append it only when present
+        # so other toolchains (e.g. EL8's distro Qt 5.15 + system OpenSSL 1.1)
+        # can run `pack` too. The GTK3 platform theme plugin ships with many Qt
+        # builds (including EL8's), but bundling it also requires GTK3 itself:
+        # opt out with VNOTE_DEPLOY_GTK3_THEME=OFF on toolchains without it.
+        option(VNOTE_DEPLOY_GTK3_THEME
+               "Let linuxdeploy bundle the GTK3 Qt platform theme into the AppImage" ON)
+        set(VX_EXTRA_DEPLOY_LIBS "")
+        if(VNOTE_DEPLOY_GTK3_THEME AND EXISTS "${QT_PLUGINS_DIR}/platformthemes/libqgtk3.so")
+            string(APPEND VX_EXTRA_DEPLOY_LIBS " -l ${QT_PLUGINS_DIR}/platformthemes/libqgtk3.so")
+        endif()
+        if(EXISTS "/usr/local/lib64/libcrypto.so.3")
+            string(APPEND VX_EXTRA_DEPLOY_LIBS " -l /usr/local/lib64/libcrypto.so.3")
+        endif()
+        if(EXISTS "/usr/local/lib64/libssl.so.3")
+            string(APPEND VX_EXTRA_DEPLOY_LIBS " -l /usr/local/lib64/libssl.so.3")
+        endif()
         configure_file(${CMAKE_CURRENT_LIST_DIR}/CPackLinuxDeployQt.cmake.in "${CMAKE_BINARY_DIR}/CPackExternal.cmake")
         set(CPACK_EXTERNAL_PACKAGE_SCRIPT "${CMAKE_BINARY_DIR}/CPackExternal.cmake")
     endif()

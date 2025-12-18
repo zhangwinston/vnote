@@ -5,6 +5,8 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QDesktopServices>
+#include <QFont>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QMenu>
 #include <QMouseEvent>
@@ -29,6 +31,35 @@
 #include <utils/widgetutils.h>
 
 using namespace vnotex;
+
+namespace {
+
+// QSS applies font-weight:bold only to the selected tab, but QTabBar sizes tabs with the
+// widget's regular font metrics — selected titles then clip. Size every tab for bold text.
+class ViewSplitTabBar : public QTabBar {
+public:
+  explicit ViewSplitTabBar(QWidget *p_parent = nullptr) : QTabBar(p_parent) {}
+
+protected:
+  QSize tabSizeHint(int p_index) const override {
+    QSize size = QTabBar::tabSizeHint(p_index);
+    QFont regular = font();
+    if (regular.bold()) {
+      return size;
+    }
+    QFont bold = regular;
+    bold.setBold(true);
+    const QString text = tabText(p_index);
+    const int delta = QFontMetrics(bold).horizontalAdvance(text) -
+                      QFontMetrics(regular).horizontalAdvance(text);
+    if (delta > 0) {
+      size.rwidth() += delta;
+    }
+    return size;
+  }
+};
+
+} // namespace
 
 const QString ViewSplit2::c_activeActionButtonForegroundName =
     QStringLiteral("widgets#viewsplit#action_button#active#fg");
@@ -77,7 +108,11 @@ void ViewSplit2::refreshIcons() {
 }
 
 void ViewSplit2::setupUI() {
-  // QTabWidget properties.
+  // Must be set before tabs are added; owns the bar via QTabWidget.
+  // Apply tab-bar properties AFTER setTabBar — setTabsClosable/setMovable/etc.
+  // forward to the current bar and are not reapplied on replacement.
+  setTabBar(new ViewSplitTabBar(this));
+
   setUsesScrollButtons(true);
   setElideMode(Qt::ElideNone);
   setTabsClosable(true);

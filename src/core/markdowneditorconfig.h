@@ -120,6 +120,9 @@ public:
   bool getSmartTableEnabled() const;
   void setSmartTableEnabled(bool p_enabled);
 
+  qreal getLeadingSpaceOfLineInCodeBlockFactor() const;
+  void setLeadingSpaceOfLineInCodeBlockFactor(qreal p_factor);
+
   int getSmartTableInterval() const;
 
   bool getAlignTableSourceEnabled() const;
@@ -251,6 +254,9 @@ private:
   // not been settled yet: turning it off never unfolds what is already folded. Inert while
   // text folding is off, since there would be no gutter to unfold with.
   bool m_autoFoldPreviewedBlocksEnabled = true;
+  // Extra leading for fenced code block lines (factor of font height).
+  // Regular text uses TextEditorConfig::m_lineSpacing.
+  qreal m_leading_space_line_code_block_factor = 0.0;
 
   // Override the config in TextEditorConfig.
   bool m_spellCheckEnabled = false;

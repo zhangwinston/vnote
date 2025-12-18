@@ -80,7 +80,8 @@ void SyncConflictDialog2::setupUI() {
 
   m_groups.reserve(m_conflictFiles.size());
 
-  const QFont monospaceFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+  // Instance form: QFontDatabase's members are static only since Qt 6.
+  const QFont monospaceFont = QFontDatabase().systemFont(QFontDatabase::FixedFont);
 
   for (int i = 0; i < m_conflictFiles.size(); ++i) {
     const QString &filePath = m_conflictFiles[i];

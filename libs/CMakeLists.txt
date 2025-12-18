@@ -26,6 +26,18 @@ add_subdirectory(QHotkey)
 # sonnet, hunspell and VTextEdit. Do not reorder.
 add_subdirectory(vtextedit)
 
+# cmark is pure C (its project only declares CXX for incidental tooling) and
+# uses no Qt at all, yet the root's global CMAKE_AUTOMOC/AUTORCC/AUTOUIC make
+# generate-time autogen look up the Qt tools IN CMARK'S SCOPE. Qt5's imported
+# tool targets (Qt5::moc, Qt5::rcc, ...) are directory-local to whichever
+# subdirectory first called find_package(Qt5), so on Qt5 builds this aborts
+# with "AUTOMOC/AUTORCC for target cmark: Could not find <tool> executable
+# target Qt5::<tool>". Qt6's tool targets are GLOBAL, which is why only Qt5
+# builds hit this. Nothing in cmark needs autogen -- skip it entirely.
+if(TARGET cmark)
+    set_target_properties(cmark PROPERTIES AUTOMOC OFF AUTORCC OFF AUTOUIC OFF)
+endif()
+
 # vxcore - VNote core library (notebook management, tags, search)
 # Disable building tests and CLI when used as a submodule
 set(VXCORE_BUILD_TESTS OFF CACHE BOOL "Disable vxcore tests" FORCE)

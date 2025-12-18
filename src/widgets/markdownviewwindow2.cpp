@@ -1041,12 +1041,28 @@ void MarkdownViewWindow2::setModeInternal(ViewWindowMode p_mode, bool p_syncBuff
       // (Matches legacy MarkdownViewWindow behavior.)
       m_viewer->show();
     }
+    setupViewer();
   }
 
   // Lazy init: create editor if needed.
   if (transition.needSetupEditor) {
     // In Edit mode, we need the viewer for preview pipeline.
     setupTextEditor();
+
+    // Warm WebEngine (DPI / render context) without a visible half-pane flash.
+    // Showing the viewer in the splitter before EditOnly hides it makes the
+    // editor start half-width then expand — that intermediate geometry also
+    // races readable-width margins/pageSize. WA_DontShowOnScreen + zero
+    // splitter share keeps the editor at full width while WebEngine still
+    // gets a "shown" widget.
+    if (m_viewer && !m_viewerReady) {
+      m_viewer->setAttribute(Qt::WA_DontShowOnScreen, true);
+      m_viewer->show();
+      if (m_splitter->count() >= 2) {
+        const int w = qMax(m_splitter->width(), 1);
+        m_splitter->setSizes({w, 0});
+      }
+    }
   }
 
   updateSectionNumberOptions();
@@ -1072,6 +1088,7 @@ void MarkdownViewWindow2::setModeInternal(ViewWindowMode p_mode, bool p_syncBuff
   // Show/hide widgets and set focus.
   switch (m_mode) {
   case ViewWindowMode::Read:
+    m_viewer->setAttribute(Qt::WA_DontShowOnScreen, false);
     m_viewer->show();
     m_viewer->setFocus();
     if (m_editor) {
@@ -1122,6 +1139,14 @@ void MarkdownViewWindow2::setModeInternal(ViewWindowMode p_mode, bool p_syncBuff
 
   // Let widgets show before scrolling (processEvents needed for geometry).
   QCoreApplication::processEvents();
+
+  // Geometry is settled after show/hide + processEvents; re-apply readable
+  // width so startup / session-restore Edit mode is not left with margins that
+  // were cleared while the viewport was still 0 or hidden.
+  applyReadableWidth();
+  // Main-window / dock layout may still settle after this stack (e.g. the
+  // deferred loadStateAndGeometry path). Re-apply once more on the next tick.
+  QTimer::singleShot(0, this, [this]() { applyReadableWidth(); });
 
   // Post-switch: sync buffer content to active view (content-only, no template reload).
   // Uses revision check to skip if already synced during initial setup.
@@ -1724,6 +1749,7 @@ void MarkdownViewWindow2::setEditViewMode(MarkdownEditorConfig::EditViewMode p_m
     // loading (m_viewerReady == false), hide it immediately to avoid a
     // visible blank pane in the QSplitter while the WebEngine initializes.
     m_viewer->hide();
+    m_viewer->setAttribute(Qt::WA_DontShowOnScreen, false);
     if (modeChanged) {
       if (m_syncPreviewTimer) {
         disconnect(m_editor->getTextEdit(), &vte::VTextEdit::contentsChanged, m_syncPreviewTimer,
@@ -1739,6 +1765,7 @@ void MarkdownViewWindow2::setEditViewMode(MarkdownEditorConfig::EditViewMode p_m
     if (m_splitter->count() > 1) {
       m_splitter->handle(1)->setVisible(true);
     }
+    m_viewer->setAttribute(Qt::WA_DontShowOnScreen, false);
     m_viewer->show();
     WidgetUtils::distributeWidgetsOfSplitter(m_splitter);
     if (modeChanged) {
