@@ -293,19 +293,14 @@ add_custom_command(TARGET test_markdowneditorcontroller POST_BUILD
     $<TARGET_FILE_DIR:test_markdowneditorcontroller>
 )
 
-# TODO: test_configmgr2 requires many dependencies (MainConfig, SessionConfig,
-# CoreConfig, EditorConfig, WidgetConfig, FileUtils2, Utils) that have deep
-# cascading dependencies throughout the codebase. This test should be re-enabled
-# once ConfigMgr2 dependencies are properly isolated into a testable library.
-# add_qt_test(test_configmgr2
-#   SOURCES
-#     test_configmgr2.cpp
-#     ${CMAKE_SOURCE_DIR}/src/core/configmgr2.cpp
-#   LINKS
-#     core_services
-#     vxcore
-#   GUILESS
-# )
+add_qt_test(test_configmgr2
+  SOURCES
+    test_configmgr2.cpp
+  LINKS
+    core_configs
+    vxcore
+  GUILESS
+)
 
 add_qt_test(test_widgetconfig_search
   SOURCES
@@ -317,10 +312,8 @@ add_qt_test(test_widgetconfig_search
 add_qt_test(test_sessionconfig_search
   SOURCES
     test_sessionconfig_search.cpp
-    stubs_sessionconfig.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/sessionconfig.cpp
   LINKS
-    core_services
+    core_configs
   GUILESS
 )
 
@@ -334,10 +327,8 @@ add_qt_test(test_searchhighlightcontext
 add_qt_test(test_quickaccessitem
   SOURCES
     test_quickaccessitem.cpp
-    stubs_sessionconfig.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/sessionconfig.cpp
   LINKS
-    core_services
+    core_configs
   GUILESS
 )
 

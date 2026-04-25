@@ -105,6 +105,13 @@ add_subdirectory(tests)
 cmake --build build --config Release --target test_error test_exception test_pathutils test_htmlutils
 ```
 
+### Test Libraries
+
+| Library | Purpose | Links |
+|---------|---------|-------|
+| `core_services` | Service layer (ConfigCoreService, NotebookCoreService, etc.) | Qt6::Core, Qt6::Gui, vxcore |
+| `core_configs` | Config classes (ConfigMgr2, MainConfig, SessionConfig, etc.) | core_services, VTextEdit |
+
 ## Run Tests
 
 **Windows (Qt DLLs must be in PATH):**
@@ -220,10 +227,10 @@ void TestMyService::testWithFixture() {
 | test_vnote3migrationservice | `VNote3MigrationService` | 46 |
 | test_searchservice | `SearchCoreService` | - |
 | test_servicelocator | `ServiceLocator` | - |
-| test_configmgr2 | `ConfigMgr2` | - |
+| test_configmgr2 | `ConfigMgr2` | 7 |
 | test_hookmanager | `HookManager` | 24 |
 | test_hookintegration | Hook integration | 10 |
-| **Total** | | **260+** |
+| **Total** | | **267+** |
 
 ## Related Modules
 

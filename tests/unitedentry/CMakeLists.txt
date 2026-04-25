@@ -33,10 +33,8 @@ target_include_directories(test_findunitedentry PRIVATE
 add_qt_test(test_unitedentry_history
   SOURCES
     test_unitedentry_history.cpp
-    stubs_unitedentry_history.cpp
-    ${CMAKE_SOURCE_DIR}/src/core/sessionconfig.cpp
   LINKS
-    core_services
+    core_configs
     vxcore
     Qt6::Widgets
   GUILESS
