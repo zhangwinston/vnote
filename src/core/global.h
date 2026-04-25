@@ -43,7 +43,7 @@ struct Info {
   QString m_description;
 };
 
-enum { CONTENTS_MARGIN = 2 };
+enum { CONTENTS_MARGIN = 2, DIALOG_MIN_WIDTH = 480 };
 
 inline QString QJsonObjectToString(const QJsonObject &p_obj) {
   QString str = "{";

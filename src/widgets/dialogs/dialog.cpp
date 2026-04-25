@@ -12,11 +12,13 @@
 #include "../propertydefs.h"
 #include "../widgetsfactory.h"
 #include <utils/widgetutils.h>
+#include <core/global.h>
 
 using namespace vnotex;
 
 Dialog::Dialog(QWidget *p_parent, Qt::WindowFlags p_flags) : QDialog(p_parent, p_flags) {
   m_layout = new QVBoxLayout(this);
+  setMinimumWidth(DIALOG_MIN_WIDTH);
 }
 
 void Dialog::setCentralWidget(QWidget *p_widget) {
