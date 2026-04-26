@@ -16,7 +16,7 @@
 #include <QToolButton>
 
 #include <vtextedit/markdownutils.h>
-#include <vtextedit/pegmarkdownhighlighter.h>
+#include <vtextedit/markdownhighlighter.h>
 #include <vtextedit/vtextedit.h>
 
 #include <controllers/markdowneditorcontroller.h>
@@ -265,7 +265,7 @@ void MarkdownViewWindow2::setupTextEditor() {
 
   // Connect viewer <-> editor web channel signals.
   connect(adapter(), &MarkdownViewerAdapter::ready, m_editor->getHighlighter(),
-          &vte::PegMarkdownHighlighter::updateHighlight);
+          &vte::MarkdownHighlighter::updateHighlight);
   connect(m_editor, &MarkdownEditor::htmlToMarkdownRequested, adapter(),
           &MarkdownViewerAdapter::htmlToMarkdownRequested);
   connect(adapter(), &MarkdownViewerAdapter::htmlToMarkdownReady, m_editor,

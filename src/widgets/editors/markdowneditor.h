@@ -3,7 +3,7 @@
 
 #include <QScopedPointer>
 
-#include <vtextedit/pegmarkdownhighlighter.h>
+#include <vtextedit/markdownhighlighter.h>
 #include <vtextedit/vmarkdowneditor.h>
 
 #include <core/editorconfig.h>
@@ -181,7 +181,7 @@ private:
 
   // Update section number.
   // Update headings outline.
-  void updateHeadings(const QVector<vte::peg::ElementRegion> &p_headerRegions);
+  void updateHeadings(const QVector<vte::md::ElementRegion> &p_headerRegions);
 
   int getHeadingIndexByBlockNumber(int p_blockNumber) const;
 

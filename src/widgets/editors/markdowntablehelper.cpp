@@ -58,7 +58,7 @@ void MarkdownTableHelper::formatTable() {
   table.write();
 }
 
-void MarkdownTableHelper::updateTableBlocks(const QVector<vte::peg::TableBlock> &p_blocks) {
+void MarkdownTableHelper::updateTableBlocks(const QVector<vte::md::TableBlock> &p_blocks) {
   if (!isSmartTableEnabled()) {
     return;
   }
@@ -79,7 +79,7 @@ void MarkdownTableHelper::updateTableBlocks(const QVector<vte::peg::TableBlock> 
 }
 
 int MarkdownTableHelper::currentCursorTableBlock(
-    const QVector<vte::peg::TableBlock> &p_blocks) const {
+    const QVector<vte::md::TableBlock> &p_blocks) const {
   // Binary search.
   int curPos = m_editor->getTextEdit()->textCursor().position();
 

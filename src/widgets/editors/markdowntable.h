@@ -4,7 +4,7 @@
 #include <QTextBlock>
 #include <QVector>
 
-#include <vtextedit/pegmarkdownhighlighterdata.h>
+#include <vtextedit/markdownhighlighterdata.h>
 
 #include <core/global.h>
 
@@ -13,7 +13,7 @@ class QTextEdit;
 namespace vnotex {
 class MarkdownTable {
 public:
-  MarkdownTable(QTextEdit *p_textEdit, const vte::peg::TableBlock &p_block);
+  MarkdownTable(QTextEdit *p_textEdit, const vte::md::TableBlock &p_block);
 
   MarkdownTable(QTextEdit *p_textEdit, int p_bodyRow, int p_col, Alignment p_alignment);
 
@@ -76,7 +76,7 @@ private:
     qreal m_coreWidth = 0;
   };
 
-  void parseTableBlock(const vte::peg::TableBlock &p_block);
+  void parseTableBlock(const vte::md::TableBlock &p_block);
 
   void clear();
 

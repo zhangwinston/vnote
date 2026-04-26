@@ -46,7 +46,7 @@ const QChar MarkdownTable::c_borderChar = '|';
 
 enum { HeaderRowIndex = 0, DelimiterRowIndex = 1 };
 
-MarkdownTable::MarkdownTable(QTextEdit *p_textEdit, const vte::peg::TableBlock &p_block)
+MarkdownTable::MarkdownTable(QTextEdit *p_textEdit, const vte::md::TableBlock &p_block)
     : m_textEdit(p_textEdit) {
   parseTableBlock(p_block);
 }
@@ -132,7 +132,7 @@ void MarkdownTable::write() {
   }
 }
 
-void MarkdownTable::parseTableBlock(const vte::peg::TableBlock &p_block) {
+void MarkdownTable::parseTableBlock(const vte::md::TableBlock &p_block) {
   auto doc = m_textEdit->document();
 
   QTextBlock block = doc->findBlock(p_block.m_startPos);

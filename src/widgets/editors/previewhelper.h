@@ -6,7 +6,7 @@
 
 #include <vtextedit/global.h>
 #include <vtextedit/lrucache.h>
-#include <vtextedit/pegmarkdownhighlighterdata.h>
+#include <vtextedit/markdownhighlighterdata.h>
 #include <vtextedit/previewmgr.h>
 
 #include "markdownvieweradapter.h"
@@ -48,9 +48,9 @@ public:
 
 public slots:
   void codeBlocksUpdated(vte::TimeStamp p_timeStamp,
-                         const QVector<vte::peg::FencedCodeBlock> &p_codeBlocks);
+                         const QVector<vte::md::FencedCodeBlock> &p_codeBlocks);
 
-  void mathBlocksUpdated(const QVector<vte::peg::MathBlock> &p_mathBlocks);
+  void mathBlocksUpdated(const QVector<vte::md::MathBlock> &p_mathBlocks);
 
   void handleGraphPreviewData(const MarkdownViewerAdapter::PreviewData &p_data);
 
@@ -81,7 +81,7 @@ private:
   struct CodeBlockPreviewData {
     CodeBlockPreviewData() = default;
 
-    CodeBlockPreviewData(const vte::peg::FencedCodeBlock &p_codeBlock);
+    CodeBlockPreviewData(const vte::md::FencedCodeBlock &p_codeBlock);
 
     void updateInplacePreview(QTextDocument *p_doc, const QPixmap &p_image,
                               const QString &p_imageName, QRgb p_background, int p_tabStopWidth);
@@ -102,7 +102,7 @@ private:
   struct MathBlockPreviewData {
     MathBlockPreviewData() = default;
 
-    MathBlockPreviewData(const vte::peg::MathBlock &p_mathBlock);
+    MathBlockPreviewData(const vte::md::MathBlock &p_mathBlock);
 
     void updateInplacePreview(QTextDocument *p_doc, const QPixmap &p_image,
                               const QString &p_imageName, int p_tabStopWidth);
@@ -215,11 +215,11 @@ private:
 
   bool m_webGraphvizEnabled = true;
 
-  QVector<vte::peg::FencedCodeBlock> m_pendingCodeBlocks;
+  QVector<vte::md::FencedCodeBlock> m_pendingCodeBlocks;
 
   QTimer *m_codeBlockTimer = nullptr;
 
-  QVector<vte::peg::MathBlock> m_pendingMathBlocks;
+  QVector<vte::md::MathBlock> m_pendingMathBlocks;
 
   QTimer *m_mathBlockTimer = nullptr;
 };

@@ -43,7 +43,7 @@
 #include <gui/utils/printutils.h>
 #include <utils/widgetutils.h>
 #include <vtextedit/markdowneditorconfig.h>
-#include <vtextedit/pegmarkdownhighlighter.h>
+#include <vtextedit/markdownhighlighter.h>
 #include <vtextedit/vtextedit.h>
 
 using namespace vnotex;
@@ -349,7 +349,7 @@ void MarkdownViewWindow::setupTextEditor() {
 
   // Connect viewer and editor.
   connect(adapter(), &MarkdownViewerAdapter::ready, m_editor->getHighlighter(),
-          &vte::PegMarkdownHighlighter::updateHighlight);
+          &vte::MarkdownHighlighter::updateHighlight);
   connect(m_editor, &MarkdownEditor::htmlToMarkdownRequested, adapter(),
           &MarkdownViewerAdapter::htmlToMarkdownRequested);
   connect(adapter(), &MarkdownViewerAdapter::htmlToMarkdownReady, m_editor,

@@ -89,7 +89,7 @@ void MarkdownEditor::init() {
   connect(m_textEdit, &vte::VTextEdit::contextMenuEventRequested, this,
           &MarkdownEditor::handleContextMenuEvent);
 
-  connect(getHighlighter(), &vte::PegMarkdownHighlighter::headersUpdated, this,
+  connect(getHighlighter(), &vte::MarkdownHighlighter::headersUpdated, this,
           &MarkdownEditor::updateHeadings);
 
   setupTableHelper();
@@ -114,9 +114,9 @@ MarkdownEditor::~MarkdownEditor() {}
 
 void MarkdownEditor::setPreviewHelper(PreviewHelper *p_helper) {
   auto highlighter = getHighlighter();
-  connect(highlighter, &vte::PegMarkdownHighlighter::codeBlocksUpdated, p_helper,
+  connect(highlighter, &vte::MarkdownHighlighter::codeBlocksUpdated, p_helper,
           &PreviewHelper::codeBlocksUpdated);
-  connect(highlighter, &vte::PegMarkdownHighlighter::mathBlocksUpdated, p_helper,
+  connect(highlighter, &vte::MarkdownHighlighter::mathBlocksUpdated, p_helper,
           &PreviewHelper::mathBlocksUpdated);
 
   auto previewMgr = getPreviewMgr();
@@ -897,7 +897,7 @@ int MarkdownEditor::getCurrentHeadingIndex() const {
   return getHeadingIndexByBlockNumber(blockNumber);
 }
 
-void MarkdownEditor::updateHeadings(const QVector<vte::peg::ElementRegion> &p_headerRegions) {
+void MarkdownEditor::updateHeadings(const QVector<vte::md::ElementRegion> &p_headerRegions) {
   bool needUpdateSectionNumber = false;
   if (isReadOnly()) {
     m_sectionNumberEnabled = false;
@@ -1372,7 +1372,7 @@ void MarkdownEditor::updateFromConfig(bool p_initialized) {
 
 void MarkdownEditor::setupTableHelper() {
   m_tableHelper = new MarkdownTableHelper(this, this);
-  connect(getHighlighter(), &vte::PegMarkdownHighlighter::tableBlocksUpdated, m_tableHelper,
+  connect(getHighlighter(), &vte::MarkdownHighlighter::tableBlocksUpdated, m_tableHelper,
           &MarkdownTableHelper::updateTableBlocks);
 }
 

@@ -20,11 +20,11 @@ public:
   void insertTable(int p_bodyRow, int p_col, Alignment p_alignment);
 
 public slots:
-  void updateTableBlocks(const QVector<vte::peg::TableBlock> &p_blocks);
+  void updateTableBlocks(const QVector<vte::md::TableBlock> &p_blocks);
 
 private:
   // Return the block index which contains the cursor.
-  int currentCursorTableBlock(const QVector<vte::peg::TableBlock> &p_blocks) const;
+  int currentCursorTableBlock(const QVector<vte::md::TableBlock> &p_blocks) const;
 
   void formatTable();
 
@@ -37,7 +37,7 @@ private:
   // Use getTimer() to access.
   QTimer *m_timer = nullptr;
 
-  vte::peg::TableBlock m_block;
+  vte::md::TableBlock m_block;
 };
 } // namespace vnotex
 

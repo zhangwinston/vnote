@@ -17,7 +17,7 @@
 using namespace vnotex;
 
 PreviewHelper::CodeBlockPreviewData::CodeBlockPreviewData(
-    const vte::peg::FencedCodeBlock &p_codeBlock)
+    const vte::md::FencedCodeBlock &p_codeBlock)
     : m_startBlock(p_codeBlock.m_startBlock), m_endBlock(p_codeBlock.m_endBlock),
       m_lang(p_codeBlock.m_lang) {}
 
@@ -43,7 +43,7 @@ void PreviewHelper::CodeBlockPreviewData::updateInplacePreview(QTextDocument *p_
   }
 }
 
-PreviewHelper::MathBlockPreviewData::MathBlockPreviewData(const vte::peg::MathBlock &p_mathBlock)
+PreviewHelper::MathBlockPreviewData::MathBlockPreviewData(const vte::md::MathBlock &p_mathBlock)
     : m_blockNumber(p_mathBlock.m_blockNumber), m_previewedAsBlock(p_mathBlock.m_previewedAsBlock),
       m_index(p_mathBlock.m_index), m_length(p_mathBlock.m_length) {}
 
@@ -115,7 +115,7 @@ PreviewHelper::PreviewHelper(MarkdownEditor *p_editor, QObject *p_parent)
 }
 
 void PreviewHelper::codeBlocksUpdated(vte::TimeStamp p_timeStamp,
-                                      const QVector<vte::peg::FencedCodeBlock> &p_codeBlocks) {
+                                      const QVector<vte::md::FencedCodeBlock> &p_codeBlocks) {
   Q_UNUSED(p_timeStamp);
   if (!m_inplacePreviewCodeBlocksEnabled) {
     return;
@@ -315,7 +315,7 @@ void PreviewHelper::setMarkdownEditor(MarkdownEditor *p_editor) {
   }
 }
 
-void PreviewHelper::mathBlocksUpdated(const QVector<vte::peg::MathBlock> &p_mathBlocks) {
+void PreviewHelper::mathBlocksUpdated(const QVector<vte::md::MathBlock> &p_mathBlocks) {
   if (!m_inplacePreviewMathBlocksEnabled || !isInplacePreviewSourceEnabled(SourceFlag::Math)) {
     return;
   }
