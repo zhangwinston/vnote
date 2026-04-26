@@ -9,6 +9,7 @@
 #include <unitedentry/unitedentryhelper.h>
 
 class QListView;
+class QSortFilterProxyModel;
 
 namespace vnotex {
 
@@ -40,6 +41,8 @@ private:
   ServiceLocator &m_services;
 
   HistoryListModel *m_model = nullptr;
+
+  QSortFilterProxyModel *m_proxyModel = nullptr;
 
   QSharedPointer<QWidget> m_listView;
 

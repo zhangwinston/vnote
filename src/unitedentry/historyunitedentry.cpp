@@ -2,6 +2,7 @@
 
 #include <QLabel>
 #include <QListView>
+#include <QSortFilterProxyModel>
 
 #include "entrywidgetfactory.h"
 #include <core/fileopensettings.h>
@@ -28,8 +29,13 @@ HistoryUnitedEntry::HistoryUnitedEntry(ServiceLocator &p_services, UnitedEntryMg
 void HistoryUnitedEntry::initOnFirstProcess() {
   m_model = new HistoryListModel(m_services.get<NotebookCoreService>(), this);
 
+  m_proxyModel = new QSortFilterProxyModel(this);
+  m_proxyModel->setSourceModel(m_model);
+  m_proxyModel->setFilterCaseSensitivity(Qt::CaseInsensitive);
+  m_proxyModel->setFilterKeyColumn(0);
+
   auto *listView = new QListView();
-  listView->setModel(m_model);
+  listView->setModel(m_proxyModel);
   m_delegate = new FileNodeDelegate(m_services, listView);
   listView->setItemDelegate(m_delegate);
   listView->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -44,14 +50,19 @@ void HistoryUnitedEntry::initOnFirstProcess() {
 void HistoryUnitedEntry::processInternal(
     const QString &p_args,
     const std::function<void(const QSharedPointer<QWidget> &)> &p_popupWidgetFunc) {
-  Q_UNUSED(p_args);
-
   setOngoing(true);
 
   m_model->loadHistory();
+  m_proxyModel->setFilterFixedString(p_args.trimmed());
 
   if (m_model->rowCount() == 0) {
     p_popupWidgetFunc(EntryWidgetFactory::createLabel(tr("No recent files")));
+    finish();
+    return;
+  }
+
+  if (m_proxyModel->rowCount() == 0) {
+    p_popupWidgetFunc(EntryWidgetFactory::createLabel(tr("No matching files")));
     finish();
     return;
   }
@@ -72,7 +83,8 @@ void HistoryUnitedEntry::handleItemActivated(const QModelIndex &p_index) {
     return;
   }
 
-  NodeIdentifier nodeId = m_model->nodeIdFromIndex(p_index);
+  const QModelIndex sourceIndex = m_proxyModel->mapToSource(p_index);
+  NodeIdentifier nodeId = m_model->nodeIdFromIndex(sourceIndex);
   if (!nodeId.isValid()) {
     return;
   }
