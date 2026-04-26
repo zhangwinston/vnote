@@ -6,7 +6,6 @@
 #include "coreconfig.h"
 #include "exception.h"
 #include "notebookmgr.h"
-#include "sessionconfig.h"
 #include "vnotex.h"
 #include <notebook/historyi.h>
 #include <notebook/notebook.h>
@@ -40,16 +39,6 @@ static bool historyPtrCmp(const QSharedPointer<HistoryItemFull> &p_a,
 
 void HistoryMgr::loadHistory() {
   m_history.clear();
-
-  // Load from session.
-  {
-    const auto &history = ConfigMgr::getInst().getSessionConfig().getHistory();
-    for (const auto &item : history) {
-      auto fullItem = QSharedPointer<HistoryItemFull>::create();
-      fullItem->m_item = item;
-      m_history.push_back(fullItem);
-    }
-  }
 
   // Load from notebooks.
   if (m_perNotebookHistoryEnabled) {
@@ -109,9 +98,6 @@ void HistoryMgr::add(const QString &p_path, int p_lineNumber, ViewWindowMode p_m
 
   if (p_notebook && m_perNotebookHistoryEnabled && p_notebook->history()) {
     p_notebook->history()->addHistory(item);
-  } else {
-    auto &sessionConfig = ConfigMgr::getInst().getSessionConfig();
-    sessionConfig.addHistory(item);
   }
 
   // Maintain the combined queue.
@@ -154,9 +140,6 @@ void HistoryMgr::remove(const QVector<QString> &p_paths, Notebook *p_notebook) {
   for (const QString &p_itemPath : p_paths) {
     if (p_notebook && m_perNotebookHistoryEnabled && p_notebook->history()) {
       p_notebook->history()->removeHistory(p_itemPath);
-    } else {
-      auto &sessionConfig = ConfigMgr::getInst().getSessionConfig();
-      sessionConfig.removeHistory(p_itemPath);
     }
 
     removeFromHistory(p_itemPath);
@@ -185,8 +168,6 @@ void HistoryMgr::insertHistoryItem(QVector<HistoryItem> &p_history, const Histor
 }
 
 void HistoryMgr::clear() {
-  ConfigMgr::getInst().getSessionConfig().clearHistory();
-
   if (m_perNotebookHistoryEnabled) {
     const auto &notebooks = VNoteX::getInst().getNotebookMgr().getNotebooks();
     for (const auto &nb : notebooks) {

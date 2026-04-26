@@ -6,7 +6,6 @@
 #include <QString>
 #include <QVector>
 
-#include "historyitem.h"
 #include <export/exportdata.h>
 #include <search/searchdata.h>
 
@@ -145,11 +144,6 @@ public:
   const QVector<ExternalProgram> &getExternalPrograms() const;
   const ExternalProgram *findExternalProgram(const QString &p_name) const;
 
-  const QVector<HistoryItem> &getHistory() const;
-  void addHistory(const HistoryItem &p_item);
-  void removeHistory(const QString &p_itemPath);
-  void clearHistory();
-
   const QVector<QuickNoteScheme> &getQuickNoteSchemes() const;
   void setQuickNoteSchemes(const QVector<QuickNoteScheme> &p_schemes);
 
@@ -186,10 +180,6 @@ private:
   QJsonArray saveQuickAccessItems() const;
 
   void doVersionSpecificOverride();
-
-  void loadHistory(const QJsonObject &p_session);
-
-  QJsonArray saveHistory() const;
 
   void loadExportOption(const QJsonObject &p_session);
 
@@ -228,8 +218,6 @@ private:
   QVector<QuickAccessItem> m_quickAccessItems;
 
   QVector<ExternalProgram> m_externalPrograms;
-
-  QVector<HistoryItem> m_history;
 
   // Default folder path to open for external media like images and files.
   QString m_externalMediaDefaultPath;

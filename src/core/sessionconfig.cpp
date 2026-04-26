@@ -8,7 +8,6 @@
 #include <utils/fileutils.h>
 #include <utils/pathutils.h>
 
-#include "historymgr.h"
 #include "iconfigmgr.h"
 #include "mainconfig.h"
 
@@ -107,8 +106,6 @@ void SessionConfig::fromJson(const QJsonObject &p_jobj) {
 
   loadExternalPrograms(p_jobj);
 
-  loadHistory(p_jobj);
-
   loadQuickNoteSchemes(p_jobj);
 }
 
@@ -204,7 +201,6 @@ QJsonObject SessionConfig::toJson() const {
   writeByteArray(obj, QStringLiteral("notebookExplorerSession"), m_notebookExplorerSession);
   writeByteArray(obj, QStringLiteral("tagExplorerSession"), m_tagExplorerSession);
   obj[QStringLiteral("externalPrograms")] = saveExternalPrograms();
-  obj[QStringLiteral("history")] = saveHistory();
   obj[QStringLiteral("quickNoteSchemes")] = saveQuickNoteSchemes();
   return obj;
 }
@@ -467,39 +463,6 @@ SessionConfig::findExternalProgram(const QString &p_name) const {
     }
   }
   return nullptr;
-}
-
-const QVector<HistoryItem> &SessionConfig::getHistory() const { return m_history; }
-
-void SessionConfig::addHistory(const HistoryItem &p_item) {
-  HistoryMgr::insertHistoryItem(m_history, p_item);
-  update();
-}
-
-void SessionConfig::removeHistory(const QString &p_itemPath) {
-  HistoryMgr::removeHistoryItem(m_history, p_itemPath);
-  update();
-}
-
-void SessionConfig::clearHistory() {
-  m_history.clear();
-  update();
-}
-
-void SessionConfig::loadHistory(const QJsonObject &p_session) {
-  auto arr = p_session[QStringLiteral("history")].toArray();
-  m_history.resize(arr.size());
-  for (int i = 0; i < arr.size(); ++i) {
-    m_history[i].fromJson(arr[i].toObject());
-  }
-}
-
-QJsonArray SessionConfig::saveHistory() const {
-  QJsonArray arr;
-  for (const auto &item : m_history) {
-    arr.append(item.toJson());
-  }
-  return arr;
 }
 
 void SessionConfig::loadExportOption(const QJsonObject &p_session) {

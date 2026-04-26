@@ -102,3 +102,4 @@ target_include_directories(vnote PRIVATE
 
 # Add services subdirectory as a separate library
 add_subdirectory(services)
+add_subdirectory(configs)
