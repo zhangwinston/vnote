@@ -36,6 +36,7 @@ ViewArea2::ViewArea2(ServiceLocator &p_services, QWidget *p_parent)
       NavigationMode(NavigationMode::Type::DoubleKeys, this, p_services.get<ThemeService>()),
       m_services(p_services) {
   setContentsMargins(0, 0, 0, 0);
+  setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
   m_stackedLayout = new QStackedLayout(this);
   m_stackedLayout->setContentsMargins(0, 0, 0, 0);
@@ -520,6 +521,15 @@ void ViewArea2::handleTargetHit(void *p_item) {
 void ViewArea2::clearNavigation() {
   NavigationMode::clearNavigation();
   m_navigationItems.clear();
+}
+
+QSize ViewArea2::sizeHint() const {
+  const QSize preferredSize(400, 300);
+  auto sz = QWidget::sizeHint();
+  if (sz.width() < preferredSize.width()) {
+    sz = preferredSize;
+  }
+  return sz;
 }
 
 // ============ Top Widget ============

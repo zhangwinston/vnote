@@ -163,6 +163,11 @@ bool DockWidgetHelper::setupDock(DockType p_dockType, const QString &p_title,
   dock->setAllowedAreas(p_allowedAreas);
   addWidgetToDock(dock, widget);
   m_mainWindow->addDockWidget(p_area, dock);
+  if (p_area == Qt::LeftDockWidgetArea || p_area == Qt::RightDockWidgetArea) {
+    dock->setMinimumWidth(150);
+  } else if (p_area == Qt::BottomDockWidgetArea) {
+    dock->setMinimumHeight(80);
+  }
   dock->setVisible(p_visible);
   return true;
 }

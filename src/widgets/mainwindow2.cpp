@@ -192,6 +192,7 @@ void MainWindow2::kickOffPostInit(const QStringList &p_pathsToOpen) {
 #endif
 
     loadStateAndGeometry();
+    validateDockProportions();
 
     emit layoutChanged();
 
@@ -728,8 +729,82 @@ void MainWindow2::resetStateAndGeometry() {
 
   // Reset to default size.
   resize(1200, 800);
+  QTimer::singleShot(0, this, [this]() { validateDockProportions(); });
 
   emit layoutChanged();
+}
+
+void MainWindow2::validateDockProportions() {
+  const int windowW = width();
+  const int kMinDockWidth = 150;
+  const int kMaxDockWidthPercent = 40;
+  const int kDefaultDockWidthPercent = 25;
+  const int kMinDockHeight = 80;
+
+  const auto &docks = m_dockWidgetHelper.getDocks();
+
+  QList<QDockWidget *> hDockList;
+  QList<int> hSizeList;
+
+  // Left docks: only NavigationDock (index 0) as representative for tabified group.
+  if (docks.size() > static_cast<int>(DockWidgetHelper::NavigationDock)) {
+    auto *dock = docks[DockWidgetHelper::NavigationDock];
+    if (dock && !dock->isFloating() && dock->isVisible()) {
+      const int dw = dock->width();
+      const int maxW = windowW * kMaxDockWidthPercent / 100;
+      if (dw < kMinDockWidth) {
+        hDockList.append(dock);
+        hSizeList.append(kMinDockWidth);
+      } else if (dw > maxW) {
+        hDockList.append(dock);
+        hSizeList.append(windowW * kDefaultDockWidthPercent / 100);
+      }
+    }
+  }
+
+  // Right dock: OutlineDock (index 5).
+  if (docks.size() > static_cast<int>(DockWidgetHelper::OutlineDock)) {
+    auto *dock = docks[DockWidgetHelper::OutlineDock];
+    if (dock && !dock->isFloating() && dock->isVisible()) {
+      const int dw = dock->width();
+      const int maxW = windowW * kMaxDockWidthPercent / 100;
+      if (dw < kMinDockWidth) {
+        hDockList.append(dock);
+        hSizeList.append(kMinDockWidth);
+      } else if (dw > maxW) {
+        hDockList.append(dock);
+        hSizeList.append(windowW * kDefaultDockWidthPercent / 100);
+      }
+    }
+  }
+
+  if (!hDockList.isEmpty()) {
+    resizeDocks(hDockList, hSizeList, Qt::Horizontal);
+  }
+
+  // Bottom docks: ConsoleDock (index 6) and LocationListDock (index 7).
+  QList<QDockWidget *> vDockList;
+  QList<int> vSizeList;
+
+  for (auto dockType : {DockWidgetHelper::ConsoleDock, DockWidgetHelper::LocationListDock}) {
+    if (docks.size() > static_cast<int>(dockType)) {
+      auto *dock = docks[dockType];
+      if (dock && !dock->isFloating() && dock->isVisible()) {
+        if (dock->height() < kMinDockHeight) {
+          vDockList.append(dock);
+          vSizeList.append(kMinDockHeight);
+        }
+      }
+    }
+  }
+
+  if (!vDockList.isEmpty()) {
+    resizeDocks(vDockList, vSizeList, Qt::Vertical);
+  }
+
+  qInfo() << "MainWindow2::validateDockProportions: windowWidth=" << windowW
+           << ", adjusted" << hDockList.size() << "horizontal,"
+           << vDockList.size() << "vertical docks";
 }
 
 void MainWindow2::restart() {

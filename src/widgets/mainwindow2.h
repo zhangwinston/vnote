@@ -147,6 +147,9 @@ private:
 
   void saveStateAndGeometry();
 
+  // Clamp dock widths/heights that fall outside acceptable bounds after state restore.
+  void validateDockProportions();
+
   // Theme switch orchestration slot.
   void onThemeChanged();
 

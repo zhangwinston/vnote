@@ -123,6 +123,8 @@ protected:
   void handleTargetHit(void *p_item) override;
   void clearNavigation() override;
 
+  QSize sizeHint() const override;
+
 private slots:
   // ViewSplit2 signal handlers
   void onMoveViewWindowOneSplitRequested(ViewSplit2 *p_split, ViewWindow2 *p_win,
