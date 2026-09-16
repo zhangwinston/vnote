@@ -760,7 +760,7 @@ void TestMarkdownEditorController::clipboardImageFileFlattensAlphaWithoutChangin
     }
   }
   ImageInsertDialog dialog(QStringLiteral("Image"), QString(), QString(), QString(), nullptr,
-                           false);
+                           QString(), false);
   dialog.setImage(image);
   dialog.setImageSource(ImageInsertDialog::ImageData);
   const auto bytes = dialog.getImageData();
@@ -851,7 +851,8 @@ void TestMarkdownEditorController::base64ReferencePreservesPixelsAndUndo() {
   image.setPixelColor(1, 0, QColor(241, 7, 63, 127));
   image.setPixelColor(2, 1, QColor(0, 255, 0, 255));
   ImageInsertDialog dialog(QStringLiteral("Image"), QStringLiteral("a [pixel]"),
-                           QStringLiteral("caption \"quoted\""), QString(), nullptr, false);
+                           QStringLiteral("caption \"quoted\""), QString(), nullptr, QString(),
+                           false);
   dialog.setImage(image);
   dialog.setImageSource(ImageInsertDialog::ImageData);
   dialog.setEncryptedNote(true);
@@ -948,7 +949,8 @@ void TestMarkdownEditorController::imageInsertionChoice() {
   QVERIFY(image.save(imagePath, format.constData()));
   const auto originalFiles =
       QDir(sourceDir.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot);
-  ImageInsertDialog dialog(QStringLiteral("Image"), QString(), QString(), QString(), nullptr);
+  ImageInsertDialog dialog(QStringLiteral("Image"), QString(), QString(), QString(), nullptr,
+                           QString());
   dialog.setEncryptedNote(encrypted);
   dialog.setImagePath(imagePath);
   QTRY_VERIFY(!dialog.getImage().isNull());
