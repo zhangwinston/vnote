@@ -69,6 +69,9 @@ void applyMarkdownConfigFields(const MarkdownEditorConfig &p_mdConfig,
 
   p_editorConfig->m_autoFoldPreviewedBlocksEnabled = p_mdConfig.getAutoFoldPreviewedBlocksEnabled();
 
+  p_editorConfig->m_leading_space_line_code_block_factor =
+      p_mdConfig.getLeadingSpaceOfLineInCodeBlockFactor();
+
   // Map InplacePreviewSources flags from vnotex -> vte.
   {
     auto srcs = p_mdConfig.getInplacePreviewSources();
@@ -299,7 +302,7 @@ QSharedPointer<vte::MarkdownEditorConfig> MarkdownEditorController::buildMarkdow
   // Wrap the text editor config in a markdown editor config.
   auto editorConfig = QSharedPointer<vte::MarkdownEditorConfig>::create(textEditorConfig);
 
-applyMarkdownConfigFields(p_mdConfig, editorConfig);
+  applyMarkdownConfigFields(p_mdConfig, editorConfig);
 
   return editorConfig;
 }
@@ -415,7 +418,7 @@ MarkdownEditorController::buildMarkdownEditorConfigFromContent(
   // Wrap the text editor config in a markdown editor config.
   auto editorConfig = QSharedPointer<vte::MarkdownEditorConfig>::create(textEditorConfig);
 
-applyMarkdownConfigFields(p_mdConfig, editorConfig);
+  applyMarkdownConfigFields(p_mdConfig, editorConfig);
 
   if (themeWasEmpty) {
     // Honor the empty-content contract: caller passed no theme JSON, so leave
