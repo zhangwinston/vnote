@@ -302,6 +302,23 @@ void TestMarkdownEditorController::testBuildMarkdownEditorConfigFromContent_tabl
            "the table source must follow the user setting");
 }
 
+void TestMarkdownEditorController::testBuildMarkdownEditorConfigFromContent_alignTableSource() {
+  auto ec = makeEditorConfig();
+  auto &mdConfig = ec.getMarkdownEditorConfig();
+
+  auto config = MarkdownEditorController::buildMarkdownEditorConfigFromContent(
+      ec, mdConfig, QString(), QStringLiteral("default"), 1.0, 0);
+  QVERIFY(!config.isNull());
+  QVERIFY2(!config->m_autoFormatTableSourceEnabled,
+           "align-table-source must default to off");
+
+  mdConfig.setAlignTableSourceEnabled(true);
+  config = MarkdownEditorController::buildMarkdownEditorConfigFromContent(
+      ec, mdConfig, QString(), QStringLiteral("default"), 1.0, 0);
+  QVERIFY(!config.isNull());
+  QVERIFY2(config->m_autoFormatTableSourceEnabled, "the flag must follow the user setting");
+}
+
 void TestMarkdownEditorController::testBuildMarkdownEditorConfig_autoFoldPreviewedBlocks() {
   auto ec = makeEditorConfig();
   auto &mdConfig = ec.getMarkdownEditorConfig();
@@ -335,6 +352,28 @@ void TestMarkdownEditorController::testBuildMarkdownEditorConfig_autoFoldPreview
   QVERIFY2(!fileBased->m_autoFoldPreviewedBlocksEnabled, "the flag must follow the user setting");
 
   mdConfig.setAutoFoldPreviewedBlocksEnabled(true);
+}
+
+void TestMarkdownEditorController::testBuildMarkdownEditorConfig_alignTableSource() {
+  auto ec = makeEditorConfig();
+  auto &mdConfig = ec.getMarkdownEditorConfig();
+
+  mdConfig.setAlignTableSourceEnabled(true);
+
+  QTemporaryDir themeDir;
+  QVERIFY(themeDir.isValid());
+  const QString themeFile = QDir(themeDir.path()).filePath(QStringLiteral("md.theme"));
+  {
+    QFile f(themeFile);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    QCOMPARE(f.write(kValidMarkdownThemeJson),
+             static_cast<qint64>(qstrlen(kValidMarkdownThemeJson)));
+  }
+
+  auto fileBased = MarkdownEditorController::buildMarkdownEditorConfig(
+      ec, mdConfig, themeFile, QStringLiteral("default"), 1.0, 0);
+  QVERIFY(!fileBased.isNull());
+  QVERIFY2(fileBased->m_autoFormatTableSourceEnabled, "the flag must follow the user setting");
 }
 
 // ============ Group 4: prepareBufferState ============
