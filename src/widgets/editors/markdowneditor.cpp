@@ -248,7 +248,6 @@ void MarkdownEditor::typeLink() {
 }
 
 void MarkdownEditor::typeImage() {
-<<<<<<< HEAD
   if (isReadOnly() || (m_protectedBuffer && m_protectedResourcesRevoked)) {
     return;
   }
@@ -273,13 +272,6 @@ void MarkdownEditor::showImageInsertDialog(quint64 p_requestId, const QString &p
     return;
   }
   const auto generation = m_imageInsertionGeneration;
-  ImageInsertDialog dialog(tr("Insert Image"), p_selectedText, "", "", m_services.get<ConfigMgr2>(),
-                           true, this);
-  dialog.setEncryptedNote(m_protectedBuffer);
-  if (m_protectedBuffer) {
-    connect(m_services.get<BufferService>()->asQObject(), SIGNAL(protectedLockingChanged(bool)),
-            &dialog, SLOT(reject()));
-  }
   // zhangyw add download image from special site
   auto cursor = m_textEdit->textCursor();
   auto p_block = cursor.block().previous();
@@ -289,9 +281,13 @@ void MarkdownEditor::showImageInsertDialog(quint64 p_requestId, const QString &p
     new_referer = p_block.text().mid(2, p_block.length() - 1);
   }
   // zhangyw add download image from special site
-
-  ImageInsertDialog dialog(tr("Insert Image"), "", "", "", m_services.get<ConfigMgr2>(), new_referer,
-                           true, this);
+  ImageInsertDialog dialog(tr("Insert Image"), p_selectedText, "", "", m_services.get<ConfigMgr2>(),
+                           new_referer, true, this);
+  dialog.setEncryptedNote(m_protectedBuffer);
+  if (m_protectedBuffer) {
+    connect(m_services.get<BufferService>()->asQObject(), SIGNAL(protectedLockingChanged(bool)),
+            &dialog, SLOT(reject()));
+  }
 
   // Try fetch image from clipboard.
   {
@@ -1406,39 +1402,26 @@ void MarkdownEditor::insertImageFromUrl(const QString &p_url, bool p_quiet, bool
             tr("Unable to insert image: unsupported or invalid image data"));
         return;
       }
-    insertImageToBufferFromLocalFile("", "", p_url);
-  } else {
-
-    // zhangyw add download image from special site
-    auto cursor = m_textEdit->textCursor();
-    auto p_block = cursor.block().previous();
-    QString marker("@@");
-    QString new_referer;
-    if (p_block.isValid() && (p_block.text().startsWith(marker)) && p_block.length() > 10) {
-      new_referer = p_block.text().mid(2, p_block.length() - 1);
-    }
-    // zhangyw add download image from special site
-
-    ImageInsertDialog dialog(tr("Insert Image From URL"), "", "", "", m_services.get<ConfigMgr2>(),
-                           new_referer, false, this);
-    dialog.setImagePath(p_url);
-    if (dialog.exec() == QDialog::Accepted) {
       enterInsertModeIfApplicable();
       if (url.isLocalFile()) {
         insertImageToBufferFromLocalFile(QString(), QString(), url.toLocalFile());
       } else {
         insertImageToBufferFromData(QString(), QString(), data);
-        auto image = dialog.getImage();
-      if (!image.isNull()) {
-          insertImageToBufferFromData(dialog.getImageTitle(), dialog.getImageAltText(), image,
-                                      dialog.getImageWidth(), dialog.getImageHeight());
-        }
       }
     }
     return;
   }
+  // zhangyw add download image from special site
+  auto cursor = m_textEdit->textCursor();
+  auto p_block = cursor.block().previous();
+  QString marker("@@");
+  QString new_referer;
+  if (p_block.isValid() && (p_block.text().startsWith(marker)) && p_block.length() > 10) {
+    new_referer = p_block.text().mid(2, p_block.length() - 1);
+  }
+  // zhangyw add download image from special site
   ImageInsertDialog dialog(tr("Insert Image From URL"), "", "", "", m_services.get<ConfigMgr2>(),
-                           false, this);
+                           new_referer, false, this);
   dialog.setEncryptedNote(m_protectedBuffer);
   dialog.setInsertAsBase64(p_base64);
   dialog.setImagePath(p_url);
