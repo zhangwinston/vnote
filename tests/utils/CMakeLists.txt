@@ -62,6 +62,16 @@ add_qt_test(test_stringutils
   GUILESS
 )
 
+add_qt_test(test_noteautorename
+  SOURCES
+    test_noteautorename.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/noteautorename.cpp
+    ${CMAKE_SOURCE_DIR}/src/utils/pathutils.cpp
+  LINKS
+    Qt6::Gui
+  GUILESS
+)
+
 # The behavioral half of this test executes the injected JavaScript in a QJSEngine, so it needs
 # Qt6::Qml, which tests/CMakeLists.txt finds as an OPTIONAL component.
 if(TARGET Qt6::Qml)

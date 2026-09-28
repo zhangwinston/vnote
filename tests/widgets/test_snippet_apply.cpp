@@ -126,6 +126,8 @@ void ViewWindow2::wheelEvent(QWheelEvent *) {}
 
 void ViewWindow2::resizeEvent(QResizeEvent *) {}
 
+void ViewWindow2::showEvent(QShowEvent *) {}
+
 } // namespace vnotex
 
 namespace tests {
