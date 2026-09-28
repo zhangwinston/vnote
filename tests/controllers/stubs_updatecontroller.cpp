@@ -8,6 +8,13 @@
 //
 // The controller no longer knows about MainWindow2 (it takes a plain QWidget*
 // dialog parent), so there is nothing else to stub.
+// The test never opens a dialog and never restarts, so these bodies only have
+// to exist. `restartCalls` is exposed so a future test can assert the restart
+// path without resurrecting MainWindow2.
+//
+// MainWindow2 is deliberately NOT listed for AUTOMOC (see CMakeLists.txt):
+// only restartForUpdate() is stubbed; defining its destructor here would emit
+// member-wise teardown for DockWidgetHelper and its NavigationMode base.
 
 #include <widgets/dialogs/updatedialog.h>
 

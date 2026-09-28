@@ -1,0 +1,277 @@
+name: CI-Linux-Qt5
+
+# Qt 5.15 Linux build for the EL8 (glibc 2.28) workstation.
+#
+# WHY A CONTAINER: binaries built on ubuntu runners link against glibc 2.35+
+# and cannot run on EL8 no matter which Qt version they use. Building inside
+# rockylinux:8 with the distro Qt 5.15.3 (AppStream) + qtwebengine 5.15.8
+# (EPEL8) keeps the whole dependency chain on glibc 2.28, so the resulting
+# AppImage runs on the EL8 target and on any newer distro.
+#
+# Distro Qt instead of aqt Qt 5.15.2: the aqt binaries would also run on EL8,
+# but distro Qt keeps OpenSSL/NSS/fontconfig consistent with the target.
+#
+# The Qt6 job in ci-linux.yml stays the primary Linux CI; this job extends the
+# Qt 5.15 line (same line as the Win7 variant in ci-win.yml) to Linux.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ refine ]
+  pull_request:
+    branches: [ refine ]
+
+env:
+  VNOTE_VER: 4.5.0
+  GH_CLI_VER: 2.63.2
+
+jobs:
+  build-linux-qt5:
+    name: Build On Rocky 8 Qt 5.15
+    runs-on: ubuntu-latest
+    container: rockylinux:8
+    timeout-minutes: 180
+
+    steps:
+      # The base image ships none of these; actions/checkout needs git, and
+      # node20 (which container actions run on) needs nothing beyond EL8's
+      # glibc 2.28 -- exactly its floor. bash: the image has NO bash (default
+      # shell falls back to sh), which would break every explicit
+      # `shell: bash` step below.
+      - name: Install Container Base Tools
+        run: dnf install -y git curl tar gzip bash
+
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Init Submodules
+        run: |
+          # The runner (host uid) creates the workspace directory, so from the
+          # container's git (2.43, running as root) the checkout looks like a
+          # dubious-ownership repo and every git command fails with "not
+          # inside a git repository". checkout@v4 adds safe.directory only to
+          # a TEMPORARY HOME that is gone after the action ends; add it to
+          # this job's persistent HOME (/github/home) instead.
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          auth_header="$(git config --local --get http.https://github.com/.extraheader)"
+          git submodule sync --recursive
+          git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
+
+      - name: Install Dependencies
+        run: |
+          # epel-release first: qt5-qtwebengine-devel (5.15.8) and fcitx-qt5
+          # live ONLY in EPEL8; AppStream carries the rest of Qt 5.15.3.
+          dnf install -y epel-release \
+            || dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+          # gcc-toolset-12: vxcore uses std::filesystem, which EL8's default
+          #   gcc 8.5 keeps in a separate libstdc++fs the tree never links.
+          #   The toolset targets the base EL8 libstdc++ (newer C++ symbols
+          #   are statically prelinked), so no runtime bundling is needed.
+          # qt5-linguist: Qt5LinguistTools (lrelease). On the RHEL family it
+          #   is a package of its own -- qt5-qttools-devel does NOT carry it
+          #   (unlike Debian/Ubuntu).
+          # qt5-qtbase-private-devel: qwindowkit includes Qt private headers.
+          # qt5-qtx11extras-devel + libX11-devel: QHotkey under Qt5/Linux.
+          # libsecret-devel: QtKeychain (FetchContent fallback of the default
+          #   VNOTE_USE_KEYCHAIN=ON) finds libsecret via pkg-config.
+          # fcitx-qt5: IME platforminputcontext plugin matching distro Qt 5.15.3.
+          # file + desktop-file-utils: required/wanted by appimagetool when
+          #   `pack` repacks the AppImage (ubuntu runners ship both; the
+          #   container ships neither). findutils: the minimal image has no
+          #   `find`, which Fix Package uses for the fontconfig sweep and the
+          #   composition gates.
+          dnf install -y \
+            make cmake pkgconf-pkg-config findutils \
+            file desktop-file-utils \
+            gcc-toolset-12 gcc-toolset-12-gcc-c++ \
+            qt5-qtbase-devel qt5-qtbase-private-devel qt5-linguist \
+            qt5-qtwebengine-devel qt5-qtwebchannel-devel qt5-qtsvg-devel \
+            qt5-qtx11extras-devel libX11-devel \
+            libsecret-devel openssl-devel fcitx-qt5
+          # Put the Qt5 tool dir (moc/rcc/uic) on PATH for every later step:
+          # Qt5's imported tool targets are DIRECTORY-scoped (created only in
+          # whichever subdirectory first called find_package(Qt5)), so targets
+          # outside those scopes -- e.g. the pure-C cmark under AUTOMOC --
+          # fall back to PATH lookup at generate time.
+          echo "/usr/lib64/qt5/bin" >> "$GITHUB_PATH"
+          # Force a UTF-8 locale for every later step: the container defaults
+          # to the C locale, under which Qt5 encodes file paths in local8Bit
+          # and mangles non-ASCII names -- rcc then aborts on extra.qrc's
+          # Chinese 'default-notebook/欢迎使用.md' (ubuntu runners default to
+          # C.UTF-8, which is why the Qt6 CI never sees this).
+          echo "LC_ALL=C.UTF-8" >> "$GITHUB_ENV"
+          echo "LANG=C.UTF-8" >> "$GITHUB_ENV"
+
+      - name: Install linuxdeploy
+        run: |
+          # Continuous builds verified to run on glibc 2.28 (the inner
+          # binaries are statically linked). APPIMAGE_EXTRACT_AND_RUN replaces
+          # the FUSE mount the container cannot provide; export it in every
+          # step that executes an AppImage. Plugin discovery relies on the
+          # linuxdeploy-plugin-* naming on PATH.
+          cd /usr/local/bin
+          curl -fsSL -o linuxdeploy-x86_64.AppImage \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -fsSL -o linuxdeploy-plugin-qt-x86_64.AppImage \
+            https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          curl -fsSL -o linuxdeploy-plugin-appimage-x86_64.AppImage \
+            https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-x86_64.AppImage
+          chmod +x linuxdeploy-*.AppImage
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          ./linuxdeploy-x86_64.AppImage --version
+
+      - name: Install GitHub CLI
+        # rockylinux:8 has no gh package; the release step below needs it.
+        # Go binary -- runs fine on EL8.
+        run: |
+          curl -fsSL -o /tmp/gh.tgz \
+            "https://github.com/cli/cli/releases/download/v${GH_CLI_VER}/gh_${GH_CLI_VER}_linux_amd64.tar.gz"
+          tar -xzf /tmp/gh.tgz -C /tmp
+          install -m 0755 "/tmp/gh_${GH_CLI_VER}_linux_amd64/bin/gh" /usr/local/bin/gh
+          gh --version
+
+      # NOTE: build dir via the GITHUB_WORKSPACE env (container-mapped
+      # /__w/vnote/vnote), NOT ${{runner.workspace}}: that expression is a
+      # HOST path (/home/runner/work/vnote) which is never translated for
+      # `run:` steps, so a working-directory derived from it makes docker
+      # exec's chdir fail with "no such file or directory".
+      - name: Create Build Dir
+        run: mkdir -p "${GITHUB_WORKSPACE}/build"
+
+      - name: Configure Project
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${GITHUB_WORKSPACE}/build"
+          source /opt/rh/gcc-toolset-12/enable
+          gcc --version | head -1
+          qmake-qt5 -query QT_VERSION
+          # Unix Makefiles is REQUIRED for `pack`: the CPack external script
+          # runs `<make> DESTDIR=... install`, which ninja cannot parse.
+          # -DQT_VERSION_MAJOR=5 pins qwindowkit's qmsetup Qt probe (its
+          # default discovery order prefers Qt6 when both are installed).
+          # -DVNOTE_DEPLOY_GTK3_THEME=OFF: EL8's Qt ships libqgtk3.so but the
+          # container has no GTK3, and linuxdeploy aborts on the unresolvable
+          # -l dependency (CPack does not propagate that failure).
+          # -DVNOTE_BUILD_TESTS=OFF: tests/CMakeLists.txt hard-requires Qt6.
+          cmake -G "Unix Makefiles" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DQT_DEFAULT_MAJOR_VERSION=5 \
+            -DQT_VERSION_MAJOR=5 \
+            -DVNOTE_DEPLOY_GTK3_THEME=OFF \
+            -DVNOTE_BUILD_TESTS=OFF \
+            "${GITHUB_WORKSPACE}" 2>&1 | tee cmake-configure.log
+          # Gates: this job must compile against distro Qt 5.15 and must find
+          # linuxdeploy (Packaging.cmake otherwise skips the AppImage
+          # generator silently and `pack` would produce nothing).
+          [[ "$(qmake-qt5 -query QT_VERSION)" =~ ^5\.15 ]] || { echo "FAIL: expected Qt 5.15"; exit 1; }
+          grep -q '^Qt5WebEngineWidgets_DIR:PATH=' CMakeCache.txt || { echo "FAIL: Qt5 components missing"; exit 1; }
+          grep -q 'Package generation - Linux - AppImage' cmake-configure.log || { echo "FAIL: linuxdeploy not found by Packaging.cmake"; exit 1; }
+
+      - name: Build Project
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${GITHUB_WORKSPACE}/build"
+          source /opt/rh/gcc-toolset-12/enable
+          cmake --build . -j"$(nproc)"
+
+      - name: Build AppImage
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${GITHUB_WORKSPACE}/build"
+          source /opt/rh/gcc-toolset-12/enable
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          cmake --build . --target=pack
+
+      - name: Fix Package
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cd "${GITHUB_WORKSPACE}/build"
+          export APPIMAGE_EXTRACT_AND_RUN=1
+          export ARCH=x86_64
+          mkdir fixpackage
+          mv VNote*.AppImage fixpackage/
+          pushd fixpackage
+          ./VNote*.AppImage --appimage-extract
+          # Remove the bundled libfontconfig so the host's libfontconfig +
+          # /etc/fonts config is used at runtime: the bundled one drops the
+          # XDG user font dir (~/.local/share/fonts) from the scan (#2712).
+          # NSS stays bundled deliberately: the target runs the same EL8
+          # stack, so bundled == system and no mismatch can arise.
+          find ./squashfs-root -name 'libfontconfig.so*' -delete
+          # No OpenSSL/libstdc++ bundling on purpose:
+          #  - Qt5 dlopens the system libssl.so.1.1/libcrypto.so.1.1 at
+          #    runtime; the EL8 target ships them, and bundling the
+          #    container's 1.1.1k would shadow the target's patched copy.
+          #    (Consequence: the AppImage is EL8-targeted -- newer distros
+          #    drop OpenSSL 1.1 and lose TLS.)
+          #  - gcc-toolset-12 binaries run against the base EL8 libstdc++
+          #    (newer symbols are statically prelinked), which the target
+          #    has; there is no toolset libstdc++.so.6 to bundle.
+          # Composition gates (mirror the Qt5 Windows job's zip gate).
+          test -f squashfs-root/usr/bin/vnote
+          test -f squashfs-root/usr/lib/libQt5Core.so.5
+          test -f squashfs-root/usr/lib/libQt5WebEngineCore.so.5
+          find squashfs-root -name 'QtWebEngineProcess*' -type f | grep -q . || { echo "FAIL: QtWebEngineProcess not bundled"; exit 1; }
+          if find squashfs-root -name 'libQt6*' | grep -q .; then
+            echo 'FAIL: Qt6 libraries leaked into the Qt5 AppImage' >&2
+            exit 1
+          fi
+          # No unresolved NEEDED entries in any bundled ELF payload (system
+          # libraries resolving from the container are fine).
+          while IFS= read -r -d '' bin; do
+            if LD_LIBRARY_PATH="$PWD/squashfs-root/usr/lib" ldd "$bin" 2>/dev/null | grep 'not found'; then
+              echo "FAIL: $bin has unresolved shared libraries" >&2
+              exit 1
+            fi
+          done < <(find squashfs-root -type f \( -name vnote -o -name 'QtWebEngineProcess*' -o -name '*.so*' \) -print0)
+          rm VNote*.AppImage
+          linuxdeploy-plugin-appimage-x86_64.AppImage --appdir=./squashfs-root
+          mv VNote*.AppImage "../VNote-${VNOTE_VER}-linux-qt5-el8-x64.AppImage"
+          popd
+
+      - name: Archive Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: VNote-${{env.VNOTE_VER}}-linux-qt5-el8-x64.AppImage
+          path: build/VNote-${{env.VNOTE_VER}}-linux-qt5-el8-x64.AppImage
+          if-no-files-found: error
+
+      - name: Update Continuous Build Release
+        if: github.ref == 'refs/heads/refine'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # gh runs from build/ (not a git checkout), so auto-detection fails;
+          # GH_REPO targets the repo without needing git.
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euxo pipefail
+          cd "${GITHUB_WORKSPACE}/build"
+          # Ensure the release exists (idempotent; the Qt6 jobs own the tag).
+          # This job deliberately does NOT move the continuous-build tag: at
+          # 3h it outlives push intervals, and a stale run PATCHing the tag
+          # back to its own older SHA would regress the release target.
+          gh release create continuous-build \
+            --target "$GITHUB_SHA" \
+            --title "Continuous Build" \
+            --prerelease \
+            --notes "Continuous build from refine ($GITHUB_SHA)." || true
+
+          cp "VNote-${VNOTE_VER}-linux-qt5-el8-x64.AppImage" "VNote-continuous-linux-qt5-el8-x64.AppImage"
+
+          # Prune only this job's own asset family, never the Qt6 assets.
+          # An empty grep result just yields zero iterations; it cannot trip
+          # set -e from inside a for word-list.
+          for asset in $(gh release view continuous-build \
+              --json assets --jq '.assets[].name' \
+              | grep -E 'linux-qt5-el8-x64\.AppImage$'); do
+            gh release delete-asset continuous-build "$asset" -y || true
+          done
+
+          gh release upload continuous-build "VNote-continuous-linux-qt5-el8-x64.AppImage" --clobber
