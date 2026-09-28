@@ -701,7 +701,7 @@ void TestMarkdownEditorController::clipboardImageFormatPreferencePreservesAlpha(
   image.fill(QColor(255, 0, 0, 128));
   image.setPixelColor(0, 0, Qt::transparent);
   ImageInsertDialog dialog(QStringLiteral("Image"), QString(), QString(), QString(), &restarted,
-                           false);
+                           QString(), false);
   dialog.setImage(image);
   dialog.setImageSource(ImageInsertDialog::ImageData);
   const auto png = dialog.getImageData();
