@@ -2,9 +2,9 @@ name: CI-MacOS
 
 on:
   push:
-    branches: [ master ]
+    branches: [ refine ]
   pull_request:
-    branches: [ master ]
+    branches: [ refine ]
 
   # Allows you to run this workflow manually from the Actions tab.
   workflow_dispatch:
@@ -324,37 +324,47 @@ jobs:
         working-directory: ${{runner.workspace}}/build
 
       - name: Codesign Bundle
-        # Extract the secrets we defined earlier as environment variables
+        # Signing secrets live in the Mac-code-sign environment. When they are
+        # absent (fork PR, or environment not configured), we still produce an
+        # unsigned DMG so CI can pass.
         env:
           MACOS_CERTIFICATE: ${{ secrets.CLI_MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.CLI_MACOS_CERTIFICATE_PWD }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.CLI_MACOS_CERTIFICATE_NAME }}
-          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.CLI_MACOS_CERTIFICATE }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.CLI_MACOS_CERTIFICATE_PWD }}
         run: |
-          # Turn our base64-encoded certificate back to a regular .p12 file
-          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+          set -e
+          DMG_NAME="VNote-${{env.VNOTE_VER}}-mac-${{matrix.config.arch}}${{matrix.config.suffix}}.dmg"
 
-          # We need to create a new keychain, otherwise using the certificate will prompt
-          # with a UI dialog asking for the certificate password, which we can't
-          # use in a headless CI environment
-          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          if [ -n "$MACOS_CERTIFICATE" ] && [ -n "$MACOS_CERTIFICATE_PWD" ] && [ -n "$MACOS_CERTIFICATE_NAME" ]; then
+            echo "Certificate secrets found — codesigning app bundle"
 
-          echo "Codesigning the native Typst library"
-          codesign --force -s "$MACOS_CERTIFICATE_NAME" --options runtime ./src/VNote.app/Contents/Frameworks/libvtextedit_typst.1.dylib
-          codesign --verify --strict --verbose=2 ./src/VNote.app/Contents/Frameworks/libvtextedit_typst.1.dylib
+            # Turn our base64-encoded certificate back to a regular .p12 file
+            echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
 
-          echo "Codesigning main app bundle"
-          codesign --force --deep -s "$MACOS_CERTIFICATE_NAME" --entitlements ${{github.workspace}}/package/entitlements.xml --options runtime ./src/VNote.app
-          codesign -v -vvv ./src/VNote.app
+            # We need to create a new keychain, otherwise using the certificate will prompt
+            # with a UI dialog asking for the certificate password, which we can't
+            # use in a headless CI environment
+            security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+            security default-keychain -s build.keychain
+            security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+            security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+
+            echo "Codesigning the native Typst library"
+            codesign --force -s "$MACOS_CERTIFICATE_NAME" --options runtime ./src/VNote.app/Contents/Frameworks/libvtextedit_typst.1.dylib
+            codesign --verify --strict --verbose=2 ./src/VNote.app/Contents/Frameworks/libvtextedit_typst.1.dylib
+
+            echo "Codesigning main app bundle"
+            codesign --force --deep -s "$MACOS_CERTIFICATE_NAME" --entitlements ${{github.workspace}}/package/entitlements.xml --options runtime ./src/VNote.app
+            codesign -v -vvv ./src/VNote.app
+          else
+            echo "WARNING: MACOS signing secrets not configured — skipping codesign (unsigned build)"
+          fi
 
           # Spotlight / XProtect can hold handles on freshly codesigned bundle
           # contents, causing `hdiutil create` to fail with "Resource busy".
           # Flush filesystem buffers + wait a beat, then retry with backoff.
-          DMG_NAME="VNote-${{env.VNOTE_VER}}-mac-${{matrix.config.arch}}${{matrix.config.suffix}}.dmg"
           sync
           sleep 5
           for attempt in 1 2 3 4 5; do
@@ -371,8 +381,12 @@ jobs:
             fi
             sleep $((attempt * 10))
           done
-          codesign --force --deep -s "$MACOS_CERTIFICATE_NAME" --entitlements ${{github.workspace}}/package/entitlements.xml --options runtime "./$DMG_NAME"
-          codesign -v -vvv "./$DMG_NAME"
+
+          if [ -n "$MACOS_CERTIFICATE" ] && [ -n "$MACOS_CERTIFICATE_PWD" ] && [ -n "$MACOS_CERTIFICATE_NAME" ]; then
+            echo "Codesigning DMG"
+            codesign --force --deep -s "$MACOS_CERTIFICATE_NAME" --entitlements ${{github.workspace}}/package/entitlements.xml --options runtime "./$DMG_NAME"
+            codesign -v -vvv "./$DMG_NAME"
+          fi
 
         working-directory: ${{runner.workspace}}/build
 
@@ -382,6 +396,9 @@ jobs:
         env:
           TYPST_MIN_OS: ${{matrix.config.deployment_target}}
           TYPST_QT_VERSION: ${{matrix.config.qt}}
+          # Presence of this secret tells the verify script whether the package
+          # under test was signed (fork builds without secrets stay unsigned).
+          MACOS_CERTIFICATE: ${{ secrets.CLI_MACOS_CERTIFICATE }}
         run: |
           # Read the signed, final DMG rather than a build-tree library.
           mountpoint="$RUNNER_TEMP/typst-package"
@@ -433,7 +450,10 @@ jobs:
                   raise SystemExit(f'Packaged Typst runtime is missing a nonempty {path}')
           if list(app.rglob('vtextedit-typst')):
               raise SystemExit('Obsolete Typst executable leaked into the DMG')
-          subprocess.run(['/usr/bin/codesign', '--verify', '--strict', '--verbose=2', str(library)], check=True)
+          if os.environ.get('MACOS_CERTIFICATE'):
+              subprocess.run(['/usr/bin/codesign', '--verify', '--strict', '--verbose=2', str(library)], check=True)
+          else:
+              print('Unsigned build (no signing secrets): skipping signature verification', flush=True)
           editor_linked = subprocess.check_output(['/usr/bin/otool', '-arch', 'all', '-L', str(editor)], text=True)
           if '@rpath/libvtextedit_typst.1.dylib' not in editor_linked:
               raise SystemExit('Packaged VTextEdit does not link the bundled native Typst ABI')

@@ -13,6 +13,7 @@ target_sources(vnote PRIVATE
     markdownhtmlrenderer.cpp markdownhtmlrenderer.h
     htmlutils.cpp htmlutils.h
     notebookpathhelpers.cpp notebookpathhelpers.h
+    noteautorename.cpp noteautorename.h
     pathutils.cpp pathutils.h
     scrollpreservationpolicy.cpp scrollpreservationpolicy.h
     sectionnumberutils.h

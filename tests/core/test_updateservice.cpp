@@ -28,9 +28,9 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
-#include <QHash>
 #include <QHostAddress>
 #include <QScopedPointer>
+#include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTcpServer>
 #include <QTcpSocket>
