@@ -49,6 +49,18 @@ jobs:
             vs_cmd: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat"
             qt: 6.10.3
             qt_modules: "qtwebengine qtwebchannel qtpositioning qtpdf qtimageformats qt5compat"
+            qt_tools: tools_opensslv3_x64
+            qt_major: 6
+            suffix: ""
+          - name: "Build on Win64 Qt 5.15"
+            arch: win64_msvc2019_64
+            vs_version: 2022
+            vs_cmd: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat"
+            qt: 5.15.2
+            qt_modules: qtwebengine
+            qt_tools: tools_opensslv3_x64
+            qt_major: 5
+            suffix: "-windows7"
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE.
@@ -64,12 +76,50 @@ jobs:
           git submodule sync --recursive
           git -c "http.extraheader=$auth_header" -c protocol.version=2 submodule update --init --force --recursive --depth=1
 
+      - name: Use Schannel for Git HTTPS (Qt5 only)
+        if: ${{ matrix.config.qt_major == 5 }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # vxcore forces WinHTTP, so -DUSE_HTTPS alone cannot override it.
+          # Change only this job's checkout; Qt6 and default builds stay on WinHTTP.
+          $cmakePath = 'libs/vxcore/third_party/CMakeLists.txt'
+          $source = [System.IO.File]::ReadAllText($cmakePath)
+          $expected = 'set(USE_HTTPS "WinHTTP" CACHE STRING "" FORCE)'
+          if ([regex]::Matches($source, [regex]::Escape($expected)).Count -ne 1) {
+            throw 'Expected exactly one forced WinHTTP setting in vxcore'
+          }
+          $replacement = 'set(USE_HTTPS "Schannel" CACHE STRING "" FORCE)'
+          [System.IO.File]::WriteAllText($cmakePath, $source.Replace($expected, $replacement))
+
       - name: Cache Qt
         id: cache-qt
         uses: actions/cache@v4
         with:
           path: ${{runner.workspace}}/Qt
           key: ${{runner.os}}-${{matrix.config.arch}}-QtCache-${{matrix.config.qt}}
+
+      - name: Setup MSVC v142 dev environment (Qt5 only)
+        if: ${{ matrix.config.qt_major == 5 }}
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          vsversion: "2022"
+          toolset: "14.29"
+
+      - name: Strip MinGW from PATH (Qt5 only)
+        if: ${{ matrix.config.qt_major == 5 }}
+        shell: pwsh
+        run: |
+          # windows-2022 ships with C:\mingw64\bin and C:\Strawberry on PATH.
+          # CMake's compiler probe will pick gcc.exe before cl.exe and MinGW
+          # silently wins. Strip these so cmake selects MSVC.
+          $kept = $env:PATH -split ';' | Where-Object {
+            $_ -and ($_ -notmatch '(?i)mingw') -and ($_ -notmatch '(?i)strawberry')
+          }
+          $newPath = ($kept -join ';')
+          "PATH=$newPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Stripped MinGW/Strawberry from PATH."
 
       - name: Install Qt Official Build
         uses: jurplel/install-qt-action@v3
@@ -78,12 +128,236 @@ jobs:
           target: desktop
           arch: ${{matrix.config.arch}}
           modules: ${{matrix.config.qt_modules}}
+          tools: ${{matrix.config.qt_tools}}
           cache: 'true'
 
       - name: Create Build Dir
         shell: bash
         run: mkdir build
         working-directory: ${{runner.workspace}}
+
+      # ---------------------------------------------------------------------
+      # OpenSSL for the Qt 5.15 / Windows 7 variant.
+      #
+      # Qt 5.15 on Windows has NO Schannel TLS backend, so without a loadable
+      # OpenSSL every HTTPS feature (update check, image hosting) dies with
+      # "QSslSocket::connectToHostEncrypted: TLS initialization failed".
+      # Qt 6 is unaffected (it falls back to Schannel). Git sync uses native
+      # Windows TLS (libgit2 Schannel in Qt5 CI, WinHTTP in Qt6), so the blast
+      # radius is exactly those two call sites.
+      #
+      # This replaced a clone of vnotex/openssl-utils pinned at 1.1.1j/Win_x64.
+      # Those prebuilt DLLs import MSVCR100.dll -- the VC++ 2010 runtime, which is
+      # neither in the package nor on a clean Windows 7/10/11 box -- so
+      # LoadLibrary failed and the shipped 4.4.2 win7 build had no TLS at all.
+      # 1.1.1j also predates CVE-2022-0778. Building 1.1.1w (the final 1.1.1
+      # release) here links the modern UCRT/vcruntime140 that the package already
+      # bundles, and keeps provenance inside this repo.
+      #
+      # These steps MUST stay after "Setup MSVC v142 dev environment" (which puts
+      # cl/link/lib/nmake on PATH) and after "Strip MinGW from PATH" (which
+      # persists the sanitized PATH through GITHUB_ENV). Do not move them earlier.
+      # ---------------------------------------------------------------------
+      - name: Cache OpenSSL 1.1.1w (Qt5 only)
+        id: cache-openssl
+        if: ${{ matrix.config.qt_major == 5 }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.workspace }}/openssl-1.1.1w-win64
+          # Bump the trailing -vN whenever the recipe below changes.
+          key: ${{runner.os}}-openssl-1.1.1w-vc142-x64-v1
+
+      - name: Build OpenSSL 1.1.1w from source (Qt5 only)
+        if: ${{ matrix.config.qt_major == 5 && steps.cache-openssl.outputs.cache-hit != 'true' }}
+        shell: pwsh
+        working-directory: ${{ runner.workspace }}
+        env:
+          OPENSSL_PREFIX: ${{ runner.workspace }}/openssl-1.1.1w-win64
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          # Perl is required by OpenSSL's Configure. Make it available for THIS
+          # STEP ONLY -- writing it to $GITHUB_ENV would undo the deliberate
+          # MinGW/Strawberry strip that keeps CMake from picking gcc over cl.
+          # Only Strawberry's perl\bin is prepended; its gcc lives in c\bin.
+          $env:PATH = "C:\Strawberry\perl\bin;$env:PATH"
+          $perlOk = $false
+          if (Get-Command perl -ErrorAction SilentlyContinue) {
+            & perl -v | Out-Null
+            $perlOk = ($LASTEXITCODE -eq 0)
+          }
+          if (-not $perlOk) {
+            throw ('perl is not available. OpenSSL cannot be configured without it. ' +
+                   'Fallback: add a shogo82148/actions-setup-perl@v1 step gated on ' +
+                   'matrix.config.qt_major == 5 before this one (it installs a perl with ' +
+                   'no gcc alongside it).')
+          }
+
+          $url = 'https://github.com/openssl/openssl/releases/download/OpenSSL_1_1_1w/openssl-1.1.1w.tar.gz'
+          $expectedSha = 'cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8'
+          $tarball = Join-Path (Get-Location) 'openssl-1.1.1w.tar.gz'
+
+          curl.exe -sSL --fail -o $tarball $url
+          if ($LASTEXITCODE -ne 0) { throw "Failed to download $url" }
+
+          $actualSha = (Get-FileHash -LiteralPath $tarball -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualSha -ne $expectedSha) {
+            throw "openssl-1.1.1w.tar.gz SHA-256 mismatch: got $actualSha, expected $expectedSha"
+          }
+          Write-Host "SHA-256 verified: $actualSha"
+
+          tar -xzf $tarball
+          if ($LASTEXITCODE -ne 0) { throw "Failed to extract $tarball" }
+
+          $src = Join-Path (Get-Location) 'openssl-1.1.1w'
+          if (-not (Test-Path -LiteralPath $src)) { throw "Extracted source dir not found: $src" }
+
+          # runner.workspace is a backslash path but the env value mixes in forward
+          # slashes; OpenSSL bakes --openssldir into the binaries, so normalize.
+          $out = $env:OPENSSL_PREFIX.Replace('/', '\')
+          Push-Location $src
+          try {
+            # no-asm drops the NASM dependency (MSVC's assembler still covers
+            # OpenSSL's small Windows shim). Crypto throughput is irrelevant for
+            # an update check and an occasional image upload. VC-WIN64A builds
+            # shared by default and produces bin\libssl-1_1-x64.dll /
+            # bin\libcrypto-1_1-x64.dll -- exactly the names the pinned Qt 5.15.2
+            # dlopens. Both "asm" and "tests" are in 1.1.1w's @disablables.
+            & perl Configure VC-WIN64A no-asm no-tests "--prefix=$out" "--openssldir=$out\ssl"
+            if ($LASTEXITCODE -ne 0) { throw "OpenSSL Configure failed" }
+            & nmake
+            if ($LASTEXITCODE -ne 0) { throw "OpenSSL nmake failed" }
+            & nmake install_sw
+            if ($LASTEXITCODE -ne 0) { throw "OpenSSL nmake install_sw failed" }
+          }
+          finally {
+            Pop-Location
+          }
+
+          # OpenSSL 1.1.1's dual OpenSSL/SSLeay license requires reproducing the
+          # copyright notice with binary redistribution. Keep the notice INSIDE
+          # the cached prefix so a cache hit still has it for the install rule in
+          # src/Packaging.cmake.
+          Copy-Item -LiteralPath (Join-Path $src 'LICENSE') -Destination (Join-Path $out 'LICENSE.OpenSSL') -Force
+          Write-Host "OpenSSL 1.1.1w installed to $out"
+
+      - name: Validate OpenSSL import tables (Qt5 only)
+        # Runs on cache HIT and MISS alike, so a cache holding an INCOMPLETE or
+        # wrongly-linked prefix fails here instead of shipping. This is the gate
+        # that would have caught the MSVCR100.dll regression in 4.4.2.
+        #
+        # SCOPE: this checks COMPOSITION -- import-table names plus file presence.
+        # It is NOT an integrity check and does not detect a substituted DLL that
+        # keeps the same import table. Content is pinned only by the SHA-256 of
+        # the source tarball, which is verified in the build step above and is
+        # therefore skipped on a cache hit.
+        id: openssl-deps
+        if: ${{ matrix.config.qt_major == 5 }}
+        shell: pwsh
+        env:
+          OPENSSL_PREFIX: ${{ runner.workspace }}/openssl-1.1.1w-win64
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $out = $env:OPENSSL_PREFIX
+
+          $required = @(
+            (Join-Path $out 'bin\libssl-1_1-x64.dll'),
+            (Join-Path $out 'bin\libcrypto-1_1-x64.dll'),
+            (Join-Path $out 'LICENSE.OpenSSL')
+          )
+          foreach ($f in $required) {
+            if (-not (Test-Path -LiteralPath $f)) { throw "Missing required OpenSSL artifact: $f" }
+          }
+
+          # dumpbin INDENTS its dependency lines, so the output must be parsed
+          # into trimmed basenames before matching. A regex applied to the raw
+          # output would not have matched the shipped "    MSVCR100.dll".
+          function Get-DllDependencies([string] $p_path) {
+            # Function-scoped: reverts on return. Native stderr merged with 2>&1
+            # becomes an ErrorRecord, which 'Stop' would turn into a throw before
+            # the exit-code check below ever runs.
+            $ErrorActionPreference = 'Continue'
+            $raw = & dumpbin /dependents $p_path 2>&1
+            $code = $LASTEXITCODE
+            if ($code -ne 0) { throw "dumpbin failed for ${p_path}: $raw" }
+            $deps = @()
+            $inSection = $false
+            foreach ($line in $raw) {
+              $text = [string]$line
+              if ($text -match 'Image has the following (delay load )?dependencies:') {
+                $inSection = $true
+                continue
+              }
+              if (-not $inSection) { continue }
+              if ($text -match '^\s*Summary') { $inSection = $false; continue }
+              $trimmed = $text.Trim()
+              if ($trimmed -match '^[^\s]+\.dll$') { $deps += $trimmed }
+            }
+            return $deps
+          }
+
+          # OpenSSL is C: it needs neither the legacy C runtime nor the C++ one.
+          $forbidden = @('(?i)^msvcr\d+\.dll$', '(?i)^msvcp\d+\.dll$')
+          # System DLLs present on every supported Windows; not shipped by us.
+          $systemAllow = @(
+            '(?i)^kernel32\.dll$', '(?i)^advapi32\.dll$', '(?i)^user32\.dll$',
+            '(?i)^ws2_32\.dll$', '(?i)^crypt32\.dll$', '(?i)^bcrypt\.dll$'
+          )
+          # Modern runtime family: allowed, but MUST be present in the package
+          # (asserted by the post-extraction step further down).
+          $runtimeAllow = @(
+            '(?i)^vcruntime140.*\.dll$', '(?i)^ucrtbase\.dll$', '(?i)^api-ms-win-.*\.dll$'
+          )
+          # libssl links against libcrypto -- that is the whole point of the pair.
+          # Accept only those two exact names, and do NOT feed them into
+          # $nonSystem: the pair's presence in the package is already asserted by
+          # name in the post-extraction step, so re-deriving it here would be
+          # circular. Keep these EXACT; never widen to lib*.dll.
+          $opensslPair = @('(?i)^libssl-1_1-x64\.dll$', '(?i)^libcrypto-1_1-x64\.dll$')
+
+          $nonSystem = New-Object System.Collections.Generic.HashSet[string]
+          foreach ($dll in @('libssl-1_1-x64.dll', 'libcrypto-1_1-x64.dll')) {
+            $path = Join-Path $out "bin\$dll"
+            $deps = Get-DllDependencies $path
+            Write-Host "$dll -> $($deps -join ', ')"
+            if (-not $deps) { throw "dumpbin reported no dependencies for $dll; refusing to trust the parse" }
+
+            foreach ($dep in $deps) {
+              foreach ($re in $forbidden) {
+                if ($dep -match $re) {
+                  throw ("$dll imports $dep. OpenSSL is C and needs neither the legacy C runtime " +
+                         "nor the C++ runtime; this is exactly the regression that shipped in 4.4.2.")
+                }
+              }
+              $isSystem = ($systemAllow | Where-Object { $dep -match $_ }).Count -gt 0
+              $isRuntime = ($runtimeAllow | Where-Object { $dep -match $_ }).Count -gt 0
+              $isPair = ($opensslPair | Where-Object { $dep -match $_ }).Count -gt 0
+              if (-not ($isSystem -or $isRuntime -or $isPair)) {
+                throw ("$dll imports unexpected dependency '$dep'. Review it explicitly rather " +
+                       "than widening the allowlist by reflex.")
+              }
+              if (-not ($isSystem -or $isPair)) { [void]$nonSystem.Add($dep) }
+            }
+          }
+
+          $list = @($nonSystem) | Sort-Object
+          Write-Host "Non-system OpenSSL dependencies that must ship in the package: $($list -join ', ')"
+          # `validated` is a separate marker from `nonsystem` on purpose. An empty
+          # nonsystem list is LEGITIMATE (it would mean OpenSSL statically linked
+          # the CRT), so the downstream step must not read "empty" as "this gate
+          # never ran". It asserts `validated` instead, which is only ever written
+          # here after every dependency has been classified.
+          #
+          # The name filter is deliberately stricter than the parser's: these
+          # values are tool-derived and are consumed by another step, so keep them
+          # to a conservative character class.
+          foreach ($n in $list) {
+            if ($n -notmatch '^[A-Za-z0-9._-]+\.dll$') {
+              throw "Refusing to publish dependency name with unexpected characters: '$n'"
+            }
+          }
+          "nonsystem=$($list -join ',')" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "validated=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Cache Typst compiler dependencies
         uses: actions/cache@v4
@@ -140,18 +414,59 @@ jobs:
       # nests it twice and leaves the install root two levels down. Downstream
       # steps -- scripts/gen-update-package.ps1 above all -- require
       # build/VNote-x.y.z-win64/ to BE the install root.
+      - name: Setup sccache (Qt6 only)
+        # MSVC-compatible compile cache for the slow Qt6 leg: warm runs skip
+        # most of the vendored third-party + test TUs that every Ninja run
+        # recompiles from scratch (the build dir is recreated each run).
+        if: ${{ matrix.config.qt_major == 6 }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install sccache -y --no-progress
+          $msvc = (Get-ChildItem 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC' |
+            Sort-Object Name | Select-Object -Last 1).Name
+          "MSVC_KEY=$msvc" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "SCCACHE_DIR=$env:LOCALAPPDATA\Mozilla\sccache\cache" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "SCCACHE_CACHE_SIZE=2G" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "SCCACHE_IDLE_TIMEOUT=0" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          $subm = (git submodule status --recursive | Out-String) | git hash-object --stdin
+          "SUBM_KEY=$($subm.Substring(0,16))" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Cache sccache (Qt6 only)
+        if: ${{ matrix.config.qt_major == 6 }}
+        uses: actions/cache@v4
+        with:
+          path: C:\Users\runneradmin\AppData\Local\Mozilla\sccache\cache
+          key: Windows-sccache-msvc${{ env.MSVC_KEY }}-Qt${{ matrix.config.qt }}-subm${{ env.SUBM_KEY }}-${{ github.sha }}
+          restore-keys: |
+            Windows-sccache-msvc${{ env.MSVC_KEY }}-Qt${{ matrix.config.qt }}-subm${{ env.SUBM_KEY }}-
+            Windows-sccache-msvc${{ env.MSVC_KEY }}-Qt${{ matrix.config.qt }}-
+
       - name: Configure and Build Project
         shell: cmd
         env:
+          QT_MAJOR: ${{ matrix.config.qt_major }}
           VS_CMD: ${{ matrix.config.vs_cmd }}
-          # Release runs package only; non-release runs build and run tests.
-          VNOTE_TESTS: ${{ !startsWith(github.event.head_commit.message, '[Release]') && 'ON' || 'OFF' }}
+          # Qt 5 has no Schannel TLS backend and MUST ship OpenSSL; Qt 6 uses
+          # Schannel and deliberately ships none, so it passes empty values here
+          # rather than a path that only ever exists for Qt 5.
+          # src/Packaging.cmake turns a missing pair into a FATAL_ERROR on Qt 5.
+          VX_OPENSSL_EXTRA_LIB_DIR: ${{ matrix.config.qt_major == 5 && format('{0}/openssl-1.1.1w-win64/bin', runner.workspace) || '' }}
+          VX_OPENSSL_LICENSE_FILE: ${{ matrix.config.qt_major == 5 && format('{0}/openssl-1.1.1w-win64/LICENSE.OpenSSL', runner.workspace) || '' }}
+          # tests/CMakeLists.txt hard-requires Qt6 (find_package(Qt6 REQUIRED)),
+          # so the Qt5 matrix entry MUST build packaging-only. Qt6 entry builds
+          # tests only on non-release runs for the ctest steps below.
+          VNOTE_TESTS: ${{ matrix.config.qt_major == 6 && !startsWith(github.event.head_commit.message, '[Release]') && 'ON' || 'OFF' }}
         run: |
           cmake --version
-          call "%VS_CMD%"
+          if "%QT_MAJOR%"=="6" call "%VS_CMD%"
           where cl || echo "cl.exe not on PATH"
-          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DVNOTE_BUILD_TESTS=%VNOTE_TESTS% %GITHUB_WORKSPACE% > cmake-configure.log 2>&1 || (type cmake-configure.log && exit /b 1)
+          if "%QT_MAJOR%"=="6" where sccache || exit /b 1
+          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DQT_DEFAULT_MAJOR_VERSION=%QT_MAJOR% -DVNOTE_BUILD_TESTS=%VNOTE_TESTS% -DOPENSSL_EXTRA_LIB_DIR=%VX_OPENSSL_EXTRA_LIB_DIR% -DOPENSSL_LICENSE_FILE=%VX_OPENSSL_LICENSE_FILE% %GITHUB_WORKSPACE% > cmake-configure.log 2>&1 || (type cmake-configure.log && exit /b 1)
           type cmake-configure.log
+          if "%QT_MAJOR%"=="5" (
+            findstr /x /c:"USE_HTTPS:STRING=Schannel" CMakeCache.txt || exit /b 1
+          )
           REM cmd reports only the LAST command's exit code, so every step here
           REM needs its own `|| exit /b 1`. Without them a failed build (and the
           REM failed pack and failed extraction that follow it) was reported as
@@ -160,8 +475,13 @@ jobs:
           REM With tests OFF, pack builds release dependencies without test targets.
           if "%VNOTE_TESTS%"=="ON" (
             cmake --build . --target all test_typsteditor || exit /b 1
+          ) else if "%QT_MAJOR%"=="5" (
+            REM Release runs need only the TLS package probe before pack below.
+            cmake --build . --target tlsprobe || exit /b 1
           )
           cmake --build . --target=pack || exit /b 1
+          if "%QT_MAJOR%"=="6" sccache --show-stats || exit /b 1
+          if "%QT_MAJOR%"=="6" sccache --stop-server || echo sccache server stopped
           7z x VNote*.zip || exit /b 1
           dir
         working-directory: ${{runner.workspace}}/build
@@ -172,7 +492,8 @@ jobs:
         # ONLY gate covering the PDF outline JS contract disappears from an
         # otherwise green run. A bare `ctest -N | Select-String ...` exits 0 even
         # with no match, so the check has to be made fatal explicitly.
-        if: ${{ !startsWith(github.event.head_commit.message, '[Release]') }}
+        # Qt5 leg builds packaging-only (no tests), so it skips this too.
+        if: ${{ matrix.config.qt_major == 6 && !startsWith(github.event.head_commit.message, '[Release]') }}
         shell: pwsh
         run: |
           $registered = ctest -C Release -N | Select-String -SimpleMatch "test_pdfviewercore_js"
@@ -185,8 +506,9 @@ jobs:
 
       - name: Build and Run Tests
         id: tests
-        # Tests were built when VNOTE_BUILD_TESTS=ON; release commits skip them.
-        if: ${{ !startsWith(github.event.head_commit.message, '[Release]') }}
+        # Tests were built when VNOTE_BUILD_TESTS=ON; release commits skip
+        # them; the Qt5 leg builds packaging-only.
+        if: ${{ matrix.config.qt_major == 6 && !startsWith(github.event.head_commit.message, '[Release]') }}
         shell: cmd
         env:
           VS_CMD: ${{ matrix.config.vs_cmd }}
@@ -218,7 +540,7 @@ jobs:
         # --extra-verbose so Qt Test's PASS/FAIL lines + assertion details
         # land in the CI log; first-run Typst, theme and API reports are preserved above.
         # This step never gates the workflow; each suite needs its own failure history.
-        if: failure() && steps.tests.outcome == 'failure'
+        if: failure() && matrix.config.qt_major == 6 && steps.tests.outcome == 'failure'
         shell: cmd
         env:
           VS_CMD: ${{ matrix.config.vs_cmd }}
@@ -233,6 +555,23 @@ jobs:
           exit /b 0
         working-directory: ${{runner.workspace}}/build
 
+      - name: Assert MSVC v142 + Qt 5.15.2 in use
+        if: ${{ matrix.config.qt_major == 5 }}
+        shell: bash
+        working-directory: ${{ runner.workspace }}/build
+        run: |
+          grep -E "MSVC.*19\.29|Compiler.*19\.29" cmake-configure.log || (echo "v142 toolset NOT in use" && exit 1)
+          grep -E "Found Qt5.*5\.15\.2|Qt5 .*5\.15\.2|5\.15\.2" cmake-configure.log || (echo "Qt 5.15.2 not found" && exit 1)
+          echo "v142 + Qt 5.15.2 verified"
+
+      - name: Rename on 5.15
+        shell: bash
+        if: ${{ startsWith(matrix.config.qt, '5.15') }}
+        working-directory: ${{ runner.workspace }}/build
+        run: |
+          mv VNote-${VNOTE_VER}-win64 VNote-${VNOTE_VER}-win64-windows7 || true
+          mv VNote-${VNOTE_VER}-win64.zip VNote-${VNOTE_VER}-win64-windows7.zip || true
+
       # Runs on EVERY build, not just releases: this is
       # the gate proving package/prune-package.cmake actually ran. If the CPack
       # hook is ever renamed or silently skipped, the SDK artifacts come back
@@ -242,7 +581,7 @@ jobs:
         shell: pwsh
         working-directory: ${{runner.workspace}}/build
         run: |
-          $extracted = "VNote-${{env.VNOTE_VER}}-win64"
+          $extracted = "VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}"
           if (-not (Test-Path -LiteralPath $extracted)) {
             Write-Error "Extracted dir '$extracted' not found"; exit 1
           }
@@ -272,7 +611,107 @@ jobs:
           }
           Write-Host "No SDK artifacts under $extracted"
 
+      # The import-table gate above proves the OpenSSL DLLs need only the modern
+      # runtime family. This one proves that family is actually IN the package,
+      # which cannot be checked earlier: the package does not exist until
+      # `cmake --build . --target=pack` + `7z x` have run.
+      - name: Verify OpenSSL runtime dependencies ship in the package (Qt5 only)
+        if: ${{ matrix.config.qt_major == 5 }}
+        shell: pwsh
+        working-directory: ${{runner.workspace}}/build
+        env:
+          # Read through env, NOT `${{ }}` interpolation. These values are derived
+          # from dumpbin output rather than authored in this workflow, and
+          # `${{ }}` is substituted textually before pwsh parses the script, so a
+          # quote in the value would break out of the string literal.
+          VX_OPENSSL_NONSYSTEM: ${{ steps.openssl-deps.outputs.nonsystem }}
+          VX_OPENSSL_VALIDATED: ${{ steps.openssl-deps.outputs.validated }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $extracted = "VNote-${{env.VNOTE_VER}}-win64-windows7"
+          if (-not (Test-Path -LiteralPath $extracted)) {
+            throw "Extracted dir '$extracted' not found"
+          }
+
+          foreach ($dll in @('libssl-1_1-x64.dll', 'libcrypto-1_1-x64.dll', 'LICENSE.OpenSSL')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $extracted $dll))) {
+              throw "Package is missing $dll -- Qt 5 has no Schannel fallback, so TLS would be dead"
+            }
+          }
+
+          # Assert the gate actually RAN. Reading emptiness of `nonsystem` for
+          # this would misfire on a legitimately empty list (statically-linked
+          # CRT), so the import-table step publishes an explicit marker.
+          if ($env:VX_OPENSSL_VALIDATED -ne 'true') {
+            throw "The OpenSSL import-table step did not report success; refusing to pass vacuously"
+          }
+          $missing = @()
+          $checked = @()
+          foreach ($dep in ("$env:VX_OPENSSL_NONSYSTEM" -split ',')) {
+            $name = $dep.Trim()
+            if (-not $name) { continue }
+            $checked += $name
+            if (-not (Test-Path -LiteralPath (Join-Path $extracted $name))) { $missing += $name }
+          }
+          if ($missing) {
+            throw ("OpenSSL depends on $($missing -join ', ') but the package does not ship " +
+                   "them; the DLLs would fail to load on a clean Windows 7 box")
+          }
+          if ($checked) {
+            Write-Host "All non-system OpenSSL dependencies present in $extracted ($($checked -join ', '))"
+          } else {
+            Write-Host "OpenSSL has no non-system dependencies to verify"
+          }
+
+      # The final TLS gate: the only check that proves the SHIPPED DLLs actually
+      # initialize TLS in the SHIPPED Qt build. The import-table and
+      # package-presence checks above cover "are the transitive dependencies
+      # there"; this one covers "does Qt actually come up with SSL". All three
+      # are needed; none replaces the others.
+      - name: Probe TLS in the packaged Qt5 build
+        if: ${{ matrix.config.qt_major == 5 }}
+        shell: pwsh
+        working-directory: ${{runner.workspace}}/build
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = "VNote-${{env.VNOTE_VER}}-win64-windows7"
+          if (-not (Test-Path -LiteralPath $pkg)) { throw "Extracted dir '$pkg' not found" }
+
+          $probe = Join-Path (Get-Location) 'tools\tlsprobe\tlsprobe.exe'
+          if (-not (Test-Path -LiteralPath $probe)) { throw "tlsprobe.exe not built at $probe" }
+
+          # Copying the probe INTO the package directory is deliberate: Windows
+          # searches the executable's own directory first, so this reproduces
+          # vnote.exe's real load context, which is what actually failed. Running
+          # it from the build tree with the package merely on PATH would let the
+          # Qt install directory shadow the packaged DLLs.
+          #
+          # The ZIP was already produced by CPack before extraction, so this does
+          # not alter the published artifact; the Remove-Item is hygiene. Qt 5
+          # runs no gen-update-package.ps1, so there is no manifest interaction.
+          $copied = Join-Path $pkg 'tlsprobe.exe'
+          Copy-Item -LiteralPath $probe -Destination $copied -Force
+          Push-Location $pkg
+          try {
+            .\tlsprobe.exe
+            $rc = $LASTEXITCODE
+          }
+          finally {
+            Pop-Location
+            Remove-Item -LiteralPath $copied -Force -ErrorAction SilentlyContinue
+          }
+          # The stray-executable gate already ran, and Archive Artifacts uploads
+          # this directory afterwards, so a silently-failed delete would publish
+          # the probe. Assert the removal rather than hoping.
+          if (Test-Path -LiteralPath $copied) {
+            throw "Failed to remove $copied from the package directory"
+          }
+          if ($rc -ne 0) { throw "Packaged Qt5 build cannot initialize TLS (tlsprobe exit $rc)" }
+          Write-Host "Packaged Qt5 build initializes TLS"
+
       - name: Verify packaged Windows updater
+        # Qt6/win64 only; the Qt5 windows7 variant ships no update assets.
+        if: ${{ matrix.config.qt_major == 6 }}
         shell: pwsh
         working-directory: ${{runner.workspace}}/build
         run: |
@@ -311,7 +750,8 @@ jobs:
         # `Release` step below. Non-release commits (PRs, continuous master
         # builds) skip manifest/delta generation entirely; those channels never
         # publish update assets, so producing them only risks failing the build.
-        if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
+        # Qt6/win64 only; the Qt5 windows7 variant ships no update assets.
+        if: matrix.config.qt_major == 6 && github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
         shell: pwsh
         working-directory: ${{runner.workspace}}/build
         env:
@@ -393,8 +833,8 @@ jobs:
 
       - name: Assert update manifest channel
         # Only runs when the previous step generated the manifests, i.e. on a
-        # `[Release]` master push.
-        if: github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
+        # `[Release]` master push of the Qt6/win64 variant.
+        if: matrix.config.qt_major == 6 && github.ref == 'refs/heads/master' && startsWith(github.event.head_commit.message, '[Release]')
         shell: pwsh
         working-directory: ${{runner.workspace}}/build
         run: |
@@ -448,6 +888,7 @@ jobs:
           }
 
       - name: Verify Qt6 zip composition
+        if: ${{ matrix.config.qt_major == 6 }}
         shell: pwsh
         working-directory: ${{runner.workspace}}/build
         run: |
@@ -495,7 +936,50 @@ jobs:
           }
           Write-Host "Qt6 zip composition OK"
 
+      - name: Verify Qt5 zip composition
+        if: ${{ startsWith(matrix.config.qt, '5.15') }}
+        shell: pwsh
+        working-directory: ${{runner.workspace}}/build
+        run: |
+          $extracted = "VNote-${{env.VNOTE_VER}}-win64-windows7"
+          Write-Host "PWD: $(Get-Location)"
+          Write-Host "Build dir entries:"
+          Get-ChildItem -Force | Select-Object Mode, Name | Format-Table | Out-String | Write-Host
+          if (-not (Test-Path $extracted)) {
+            Write-Host "Extracted dir '$extracted' not present; falling back to VNote-${{env.VNOTE_VER}}-win64"
+            $extracted = "VNote-${{env.VNOTE_VER}}-win64"
+          }
+          if (-not (Test-Path $extracted)) { Write-Error "Neither extracted dir found"; exit 1 }
+          Write-Host "Inspecting '$extracted':"
+          Get-ChildItem -Force $extracted | Select-Object Mode, Name | Format-Table | Out-String | Write-Host
+
+          # vnote.exe MUST sit directly in the extracted root, not in a nested
+          # "VNote-<ver>-win64/" or "bin/" subdirectory: the extracted dir is
+          # what scripts/gen-update-package.ps1 treats as the install root, and
+          # the updater strips exactly one level from a full package. This ran
+          # -Recurse before, which is why a two-level-deep layout went unnoticed
+          # until the release-only manifest step first executed.
+          $rootExe = Join-Path $extracted 'vnote.exe'
+          if (-not (Test-Path -LiteralPath $rootExe)) {
+            Write-Error "vnote.exe is not at the root of $extracted (install root must be flat)"
+            Get-ChildItem -Recurse -Filter vnote.exe $extracted | ForEach-Object { Write-Host "  found at: $($_.FullName)" }
+            exit 1
+          }
+          Write-Host "vnote.exe -> $((Get-Item -LiteralPath $rootExe).FullName)"
+
+          foreach ($dll in @('Qt5Core.dll','Qt5WebEngineCore.dll','QtWebEngineProcess.exe')) {
+            $hit = Get-ChildItem -Path $extracted -Recurse -Filter $dll -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $hit) { Write-Error "$dll missing under $extracted"; exit 1 }
+            Write-Host "$dll -> $($hit.FullName)"
+          }
+
+          $qt6 = Get-ChildItem -Recurse $extracted -Filter "Qt6*.dll" -ErrorAction SilentlyContinue
+          if ($qt6) { Write-Error "Qt6 DLLs leaked into Qt5 build: $($qt6 -join ', ')"; exit 1 }
+          Write-Host "Qt5 zip composition OK"
+
       - name: Verify packaged Typst runtime
+        # The native Typst backend only ships in the Qt6 package.
+        if: ${{ matrix.config.qt_major == 6 }}
         shell: pwsh
         working-directory: ${{runner.workspace}}/build
         run: |
@@ -548,13 +1032,14 @@ jobs:
       - name: Archive Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: VNote-${{env.VNOTE_VER}}-win64
-          path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64
+          name: VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}
+          path: ${{runner.workspace}}/build/VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}
 
       - name: Archive Installer
+        if: ${{ !startsWith(matrix.config.qt, '5.15') }}
         uses: actions/upload-artifact@v4
         with:
-          name: VNote-${{env.VNOTE_VER}}-win64.msi
+          name: VNote-${{env.VNOTE_VER}}-win64${{matrix.config.suffix}}.msi
           path: ${{runner.workspace}}/build/VNote*.msi
 
       - name: Update Continuous Build Refine
@@ -574,6 +1059,7 @@ jobs:
           # git-based repo auto-detection fails ("fatal: not a git repository").
           # GH_REPO makes every gh command target the repo without needing git.
           GH_REPO: ${{ github.repository }}
+          SUFFIX: ${{matrix.config.suffix}}
         run: |
           set -e
           # Ensure the release + tag exist (idempotent; all jobs share GITHUB_SHA).
@@ -585,13 +1071,22 @@ jobs:
           gh api -X PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/continuous-build" \
             -F sha="$GITHUB_SHA" -F force=true || true
 
-          STABLE="VNote-continuous-win64.zip"
+          STABLE="VNote-continuous-win64${SUFFIX}.zip"
 
           # Copy the built artifact to a stable, non-versioned name.
-          cp "VNote-${VNOTE_VER}-win64.zip" "$STABLE"
+          cp "VNote-${VNOTE_VER}-win64${SUFFIX}.zip" "$STABLE"
 
-          # Retire old Windows 7 full ZIPs too; never prune delta/update assets.
-          PRUNE_RE='win64(-windows7)?\.zip$'
+          # Prune only this job's own asset family. The two regexes are mutually
+          # exclusive: win64\.zip$ does NOT match ...win64-windows7.zip.
+          # The incremental-update assets (.manifest.json / .delta.zip) are
+          # deliberately NOT published to continuous-build, and neither regex
+          # matches them (both end in \.zip$ and the delta ends in .delta.zip,
+          # which win64\.zip$ / win64-windows7\.zip$ cannot match).
+          if [ -n "$SUFFIX" ]; then
+            PRUNE_RE='win64-windows7\.zip$'
+          else
+            PRUNE_RE='win64\.zip$'
+          fi
           for asset in $(gh release view continuous-build \
               --json assets --jq '.assets[].name' \
               | grep -E "$PRUNE_RE"); do
