@@ -414,27 +414,20 @@ void TestNotebookSyncInfoDialog2::testFailedBootstrapLeavesNotebookAndDialogInta
     QSignalSpy completed(controller, &NotebookSyncInfoController::applyComplete);
     QSignalSpy accepted(&dialog, &QDialog::accepted);
     QTimer dismissError;
-    bool sawErrorBox = false;
-    connect(&dismissError, &QTimer::timeout, this, [&]() {
-      // Keep dismissing until applyComplete: Cocoa may deliver the first click
-      // during show(), hiding the box before exec() starts its nested loop.
-      auto *modal = QApplication::activeModalWidget();
-      auto widgets = QApplication::topLevelWidgets();
-      widgets.prepend(modal);
-      for (auto *widget : widgets) {
-        auto *box = qobject_cast<QMessageBox *>(widget);
-        if (!box || box->parentWidget() != &dialog) {
-          continue;
-        }
-        // Click Ok regardless of visibility: on some headless CI VMs the
-        // error box blocks in exec() while never becoming visible, and the
-        // previous isVisible()/activeModalWidget() guard left the test
-        // hanging until the CTest timeout. button->click() works either way.
-        sawErrorBox = sawErrorBox || box->isVisible() || box == modal;
-        if (auto *button = box->button(QMessageBox::Ok)) {
-          button->click();
-          return;
-        }
+    int dismissedErrors = 0;
+    // Auto-accept every modal error box via activeModalWidget()->accept() --
+    // the exact pattern testExistingBackendSelectionAndRawProtection uses to
+    // drive these same onError boxes, proven to work under the Qt
+    // 6.10.3/Cocoa CI runner. Keep the timer running for the whole apply
+    // cycle: the failure path may raise MORE THAN ONE QMessageBox (e.g.
+    // credentials-store failure followed by an enable-failure box), and a
+    // previous variant that stopped the timer after the first dismissal left
+    // a second box blocking in exec() until the CTest timeout. Count only
+    // QMessageBox instances so the dialog itself is never dismissed.
+    connect(&dismissError, &QTimer::timeout, this, [&dismissedErrors]() {
+      if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+        ++dismissedErrors;
+        box->accept();
       }
     });
     dismissError.start(10);
@@ -443,7 +436,7 @@ void TestNotebookSyncInfoDialog2::testFailedBootstrapLeavesNotebookAndDialogInta
     QVERIFY(completed.wait(5000));
     QCOMPARE(completed.count(), 1);
     dismissError.stop();
-    QVERIFY(sawErrorBox);
+    QVERIFY(dismissedErrors >= 1);
     QVERIFY(!completed.first().first().toBool());
     QCOMPARE(accepted.count(), 0);
     QVERIFY(dialog.isVisible());
