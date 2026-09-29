@@ -368,28 +368,37 @@ void TestNotebookSyncInfoDialog2::testFailedBootstrapLeavesNotebookAndDialogInta
     secret->setText(QStringLiteral("app-password"));
     QSignalSpy completed(controller, &NotebookSyncInfoController::applyComplete);
     QSignalSpy accepted(&dialog, &QDialog::accepted);
-    QTimer dismissError;
+    // Deterministically accept every error box via a global event filter on
+    // its Show event. Polling approaches proved flaky on the macOS CI
+    // runners regardless of Qt version (each dismissal variant passed one
+    // leg and hung the other): the box exec()s before the runner's window
+    // server activates it, so neither activeModalWidget() nor a
+    // topLevelWidgets() scan reliably finds it and the test then times out
+    // after 60s. The Show event always reaches the filter; the queued
+    // accept() lands inside exec()'s own loop. Covers multiple boxes raised
+    // by the failure path; counts only QMessageBox instances so the dialog
+    // itself is never dismissed.
     int dismissedErrors = 0;
-    // Auto-accept every modal error box via activeModalWidget()->accept() --
-    // the exact pattern testExistingBackendSelectionAndRawProtection uses to
-    // drive these same onError boxes, proven to work under the Qt
-    // 6.10.3/Cocoa CI runner. Keep the timer running for the whole apply
-    // cycle: the failure path may raise MORE THAN ONE QMessageBox (e.g.
-    // credentials-store failure followed by an enable-failure box), and a
-    // previous variant that stopped the timer after the first dismissal left
-    // a second box blocking in exec() until the CTest timeout. Count only
-    // QMessageBox instances so the dialog itself is never dismissed.
-    connect(&dismissError, &QTimer::timeout, this, [&dismissedErrors]() {
-      if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
-        ++dismissedErrors;
-        box->accept();
+    class ErrorBoxFilter : public QObject {
+    public:
+      explicit ErrorBoxFilter(int *p_count) : m_count(p_count) {}
+      bool eventFilter(QObject *p_obj, QEvent *p_event) override {
+        if (p_event->type() == QEvent::Show) {
+          if (auto *box = qobject_cast<QMessageBox *>(p_obj)) {
+            ++(*m_count);
+            QMetaObject::invokeMethod(box, "accept", Qt::QueuedConnection);
+          }
+        }
+        return QObject::eventFilter(p_obj, p_event);
       }
-    });
-    dismissError.start(10);
+      int *m_count = nullptr;
+    };
+    ErrorBoxFilter errorBoxFilter(&dismissedErrors);
+    qApp->installEventFilter(&errorBoxFilter);
     ok->click();
     QVERIFY(!ok->isEnabled()); // No duplicate enables while the vault operation is pending.
     QTRY_COMPARE(completed.count(), 1);
-    dismissError.stop();
+    qApp->removeEventFilter(&errorBoxFilter);
     QVERIFY(dismissedErrors >= 1);
     QVERIFY(!completed.first().first().toBool());
     QCOMPARE(accepted.count(), 0);
