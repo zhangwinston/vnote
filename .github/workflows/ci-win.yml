@@ -454,7 +454,7 @@ jobs:
           VS_CMD: ${{ matrix.config.vs_cmd }}
         run: |
           call "%VS_CMD%"
-          ctest -C Release --output-on-failure -j 4
+          ctest -C Release --output-on-failure
         working-directory: ${{runner.workspace}}/build
 
       - name: Re-run failed tests with extra-verbose output (debug aid)
