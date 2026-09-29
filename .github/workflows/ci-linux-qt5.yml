@@ -185,7 +185,7 @@ jobs:
           cd "${GITHUB_WORKSPACE}/build"
           source /opt/rh/gcc-toolset-12/enable
           export APPIMAGE_EXTRACT_AND_RUN=1
-          cmake --build . --target=pack
+          cmake --build . --target=pack -j"$(nproc)"
 
       - name: Fix Package
         shell: bash

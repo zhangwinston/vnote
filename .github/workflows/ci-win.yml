@@ -362,6 +362,34 @@ jobs:
       # nests it twice and leaves the install root two levels down. Downstream
       # steps -- scripts/gen-update-package.ps1 above all -- require
       # build/VNote-x.y.z-win64/ to BE the install root.
+      - name: Setup sccache (Qt6 only)
+        # MSVC-compatible compile cache for the slow Qt6 leg: warm runs skip
+        # most of the vendored third-party + test TUs that every Ninja run
+        # recompiles from scratch (the build dir is recreated each run).
+        if: ${{ matrix.config.qt_major == 6 }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install sccache -y --no-progress
+          $msvc = (Get-ChildItem 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC' |
+            Sort-Object Name | Select-Object -Last 1).Name
+          "MSVC_KEY=$msvc" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "SCCACHE_DIR=$env:LOCALAPPDATA\Mozilla\sccache\cache" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "SCCACHE_CACHE_SIZE=2G" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "SCCACHE_IDLE_TIMEOUT=0" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          $subm = (git submodule status --recursive | Out-String) | git hash-object --stdin
+          "SUBM_KEY=$($subm.Substring(0,16))" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Cache sccache (Qt6 only)
+        if: ${{ matrix.config.qt_major == 6 }}
+        uses: actions/cache@v4
+        with:
+          path: C:\Users\runneradmin\AppData\Local\Mozilla\sccache\cache
+          key: Windows-sccache-msvc${{ env.MSVC_KEY }}-Qt${{ matrix.config.qt }}-subm${{ env.SUBM_KEY }}-${{ github.sha }}
+          restore-keys: |
+            Windows-sccache-msvc${{ env.MSVC_KEY }}-Qt${{ matrix.config.qt }}-subm${{ env.SUBM_KEY }}-
+            Windows-sccache-msvc${{ env.MSVC_KEY }}-Qt${{ matrix.config.qt }}-
+
       - name: Configure and Build Project
         shell: cmd
         env:
@@ -381,6 +409,7 @@ jobs:
           cmake --version
           if "%QT_MAJOR%"=="6" call "%VS_CMD%"
           where cl || echo "cl.exe not on PATH"
+          if "%QT_MAJOR%"=="6" where sccache || exit /b 1
           cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DQT_DEFAULT_MAJOR_VERSION=%QT_MAJOR% -DVNOTE_BUILD_TESTS=%VNOTE_TESTS% -DOPENSSL_EXTRA_LIB_DIR=%VX_OPENSSL_EXTRA_LIB_DIR% -DOPENSSL_LICENSE_FILE=%VX_OPENSSL_LICENSE_FILE% %GITHUB_WORKSPACE% > cmake-configure.log 2>&1 || (type cmake-configure.log && exit /b 1)
           type cmake-configure.log
           if "%QT_MAJOR%"=="5" (
@@ -394,6 +423,8 @@ jobs:
           REM Release builds need only the TLS package probe before pack below.
           cmake --build . --target=${{ startsWith(github.event.head_commit.message, '[Release]') && 'tlsprobe' || 'all' }} || exit /b 1
           cmake --build . --target=pack || exit /b 1
+          if "%QT_MAJOR%"=="6" sccache --show-stats || exit /b 1
+          if "%QT_MAJOR%"=="6" sccache --stop-server || echo sccache server stopped
           7z x VNote*.zip || exit /b 1
           dir
         working-directory: ${{runner.workspace}}/build
@@ -423,7 +454,7 @@ jobs:
           VS_CMD: ${{ matrix.config.vs_cmd }}
         run: |
           call "%VS_CMD%"
-          ctest -C Release --output-on-failure
+          ctest -C Release --output-on-failure -j 4
         working-directory: ${{runner.workspace}}/build
 
       - name: Re-run failed tests with extra-verbose output (debug aid)

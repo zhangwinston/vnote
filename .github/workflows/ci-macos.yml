@@ -51,7 +51,7 @@ jobs:
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE.
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: recursive
@@ -65,6 +65,26 @@ jobs:
       - name: Install Dependencies
         run: |
           brew install tree libiodbc libpq
+
+      - name: Install ccache
+        # Compile cache: warm runs skip most of the recompiled-from-scratch
+        # app/submodule/third-party TUs (the build dir is recreated each run).
+        run: |
+          brew install ccache
+          ccache --set-config=max_size=2G
+          ccache --set-config=compression=true
+          echo "CCACHE_DIR=$HOME/Library/Caches/ccache" >> "$GITHUB_ENV"
+          echo "CC_KEY=$(clang --version | head -n1 | shasum | cut -c1-16)" >> "$GITHUB_ENV"
+          echo "SUBM_KEY=$(git submodule status --recursive | git hash-object --stdin | cut -c1-16)" >> "$GITHUB_ENV"
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/ccache
+          key: ${{ runner.os }}-ccache-${{ env.CC_KEY }}-qt${{ matrix.config.qt }}-subm${{ env.SUBM_KEY }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ env.CC_KEY }}-qt${{ matrix.config.qt }}-subm${{ env.SUBM_KEY }}-
+            ${{ runner.os }}-ccache-${{ env.CC_KEY }}-qt${{ matrix.config.qt }}-
 
       - name: Fix SQL
         run: |
@@ -94,13 +114,9 @@ jobs:
           sudo ln -s ./optool /usr/local/bin/optool
         working-directory: ${{runner.workspace}}
 
-      - name: Cache Qt
-        id: cache-qt
-        uses: actions/cache@v4
-        with:
-          path: ${{runner.workspace}}/Qt
-          key: ${{runner.os}}-${{matrix.config.arch}}-QtCache-${{matrix.config.qt}}
-
+      # Qt caching is handled solely by install-qt-action's cache: 'true' below;
+      # the previous manual duplicate layer was removed (it double-saved a
+      # multi-GB tree per job and its key periodically hit cache-service 400s).
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
@@ -120,12 +136,16 @@ jobs:
         working-directory: ${{runner.workspace}}
 
       - name: Configure Project
+        env:
+          CCACHE_BASEDIR: ${{ runner.workspace }}
+          CCACHE_NOHASHDIR: true
+          CCACHE_COMPILERCHECK: content
         run: |
           qmake -v
           cmake --version
           # Keep the generated bundle's minimum OS aligned with this Qt variant.
           /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion ${{matrix.config.deployment_target}}" "${GITHUB_WORKSPACE}/src/data/core/Info.plist"
-          cmake -DVNOTE_BUILD_TESTS=${VNOTE_TESTS} -DMACDEPLOYQTFIX_EXECUTABLE=${{runner.workspace}}/macdeployqtfix/macdeployqtfix.py -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=${{matrix.config.deployment_target}} ${GITHUB_WORKSPACE}
+          cmake -DVNOTE_BUILD_TESTS=${VNOTE_TESTS} -DMACDEPLOYQTFIX_EXECUTABLE=${{runner.workspace}}/macdeployqtfix/macdeployqtfix.py -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=${{matrix.config.deployment_target}} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ${GITHUB_WORKSPACE}
         working-directory: ${{runner.workspace}}/build
 
       - name: Build Project
@@ -135,8 +155,9 @@ jobs:
           rm ${{env.Qt6_DIR}}/plugins/sqldrivers/libqsqlodbc.dylib
           rm ${{env.Qt6_DIR}}/plugins/sqldrivers/libqsqlpsql.dylib
 
-          # Build the project
-          cmake --build . --target pack
+          # Build the project (default make parallelism is 1; use all cores)
+          cmake --build . --target pack --parallel "$(sysctl -n hw.ncpu)"
+          ccache --show-stats
 
           # Fix Qt frameworks
           python3 ${{runner.workspace}}/macdeployqtfix/macdeployqtfix.py ./src/VNote.app/Contents/MacOS/VNote ${{env.Qt6_DIR}}/../..
@@ -190,7 +211,8 @@ jobs:
         # native application runner from tests/helpers/test_helper.h.
         run: |
           set -e
-          cmake --build .
+          cmake --build . --parallel "$(sysctl -n hw.ncpu)"
+          ccache --show-stats
           # Path-safety fixtures need a physical temp root, not macOS's /var alias.
           TMPDIR=$(cd "$TMPDIR" && pwd -P)
           export TMPDIR

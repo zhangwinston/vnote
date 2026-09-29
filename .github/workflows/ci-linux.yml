@@ -62,15 +62,37 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y fuse libxcb-cursor-dev
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libssl-dev
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libsecret-1-dev
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y ccache
           python3 -m pip config set global.break-system-packages true
+
+      - name: Setup ccache
+        # Compile cache: warm runs skip most of the recompiled-from-scratch
+        # app/submodule/third-party TUs (the build dir is recreated each run).
+        run: |
+          ccache --set-config=max_size=2G
+          ccache --set-config=compression=true
+          echo "CCACHE_DIR=$HOME/.cache/ccache" >> "$GITHUB_ENV"
+          echo "GCC_KEY=$(gcc --version | head -n1 | sha256sum | cut -c1-16)" >> "$GITHUB_ENV"
+          echo "SUBM_KEY=$(git submodule status --recursive | git hash-object --stdin | cut -c1-16)" >> "$GITHUB_ENV"
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: Linux-ccache-${{ env.GCC_KEY }}-qt6.10.3-subm${{ env.SUBM_KEY }}-${{ github.sha }}
+          restore-keys: |
+            Linux-ccache-${{ env.GCC_KEY }}-qt6.10.3-subm${{ env.SUBM_KEY }}-
+            Linux-ccache-${{ env.GCC_KEY }}-qt6.10.3-
 
       - name: Cache Qt
         id: cache-qt
         uses: actions/cache@v4
         with:
           path: ${{runner.workspace}}/Qt
-          # The Qt tree also contains OpenSSL compiled on the runner.
-          key: ${{ runner.os }}-ubuntu-22.04-QtCache-6.10.3
+          # The Qt tree also contains OpenSSL compiled on the runner and the
+          # fcitx plugin installed below. v2: guarantees a saved entry that
+          # contains both (older entries may predate them).
+          key: ${{ runner.os }}-ubuntu-22.04-QtCache-6.10.3-v2
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
@@ -93,9 +115,14 @@ jobs:
       - name: Compile OpenSSLV3
         run: |
           cd ${Qt6_DIR}/../../Tools/OpenSSLv3/src
-          ./Configure
-          make -j2
-          sudo make install
+          # In-tree build products (libssl.a etc.) round-trip inside the cached
+          # Qt tree; only a cache miss needs Configure+build. install_sw is the
+          # libs-only install target (skips the man-page build).
+          if [ ! -f libssl.a ]; then
+            ./Configure
+            make -j"$(nproc)"
+          fi
+          sudo make install_sw
 
       - name: Create Build Dir
         run: mkdir build
@@ -103,6 +130,12 @@ jobs:
 
       - name: Compile fcitxqt5
         run: |
+          # The plugin installs into the cached Qt tree; skip clone+rebuild on
+          # warm runs (the build is pinned and patched deterministically).
+          if ls ${{runner.workspace}}/Qt/6.*/gcc_64/plugins/platforminputcontexts/*fcitx* >/dev/null 2>&1; then
+            echo "fcitx plugin present in cached Qt tree; skipping rebuild"
+            exit 0
+          fi
           git clone https://github.com/fcitx/fcitx-qt5
           cd fcitx-qt5
           # Pin: upstream is unmaintained (last commit 2023-04), so an unpinned
@@ -121,7 +154,7 @@ jobs:
           PATCH_EOF
           mkdir build && cd build
           cmake -DENABLE_QT5=OFF -DENABLE_QT6=ON ..
-          make -j2
+          make -j"$(nproc)"
           sudo make install
         working-directory: ${{runner.workspace}}/build
 
@@ -140,17 +173,22 @@ jobs:
       # deployed by deployStandardQtPlugins.
 
       - name: Configure Project
+        env:
+          CCACHE_BASEDIR: ${{ runner.workspace }}
+          CCACHE_NOHASHDIR: true
+          CCACHE_COMPILERCHECK: content
         run: |
           qmake -v
           cmake --version
-          cmake -DVNOTE_BUILD_TESTS=${VNOTE_TESTS} ${GITHUB_WORKSPACE}
+          cmake -DVNOTE_BUILD_TESTS=${VNOTE_TESTS} -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ${GITHUB_WORKSPACE}
         working-directory: ${{runner.workspace}}/build
 
       - name: Build Project
         run: |
           # Remove the libqsqlmimer.so as libmimerapi.so is not deployed with Qt6
           rm -f ${{runner.workspace}}/Qt/6.*/gcc_64/plugins/sqldrivers/libqsqlmimer.so
-          cmake --build . --target pack
+          cmake --build . --target pack -j"$(nproc)"
+          ccache --show-stats
         working-directory: ${{runner.workspace}}/build
 
       - name: Install Test Dependencies
@@ -166,7 +204,7 @@ jobs:
         # in the root CMakeLists.txt and is enabled above only for non-release runs.
         run: |
           set -e
-          cmake --build .
+          cmake --build . -j"$(nproc)"
           export QT_QPA_PLATFORM=offscreen
           # Force a UTF-8 locale so std::filesystem::path round-trips through
           # std::string preserve non-ASCII bytes. Without this, CJK filenames
