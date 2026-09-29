@@ -426,10 +426,11 @@ void TestNotebookSyncInfoDialog2::testFailedBootstrapLeavesNotebookAndDialogInta
         if (!box || box->parentWidget() != &dialog) {
           continue;
         }
+        // Click Ok regardless of visibility: on some headless CI VMs the
+        // error box blocks in exec() while never becoming visible, and the
+        // previous isVisible()/activeModalWidget() guard left the test
+        // hanging until the CTest timeout. button->click() works either way.
         sawErrorBox = sawErrorBox || box->isVisible() || box == modal;
-        if (!sawErrorBox) {
-          continue;
-        }
         if (auto *button = box->button(QMessageBox::Ok)) {
           button->click();
           return;
