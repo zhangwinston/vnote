@@ -410,7 +410,11 @@ jobs:
           if "%QT_MAJOR%"=="6" call "%VS_CMD%"
           where cl || echo "cl.exe not on PATH"
           if "%QT_MAJOR%"=="6" where sccache || exit /b 1
-          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DQT_DEFAULT_MAJOR_VERSION=%QT_MAJOR% -DVNOTE_BUILD_TESTS=%VNOTE_TESTS% -DOPENSSL_EXTRA_LIB_DIR=%VX_OPENSSL_EXTRA_LIB_DIR% -DOPENSSL_LICENSE_FILE=%VX_OPENSSL_LICENSE_FILE% %GITHUB_WORKSPACE% > cmake-configure.log 2>&1 || (type cmake-configure.log && exit /b 1)
+          REM sccache wraps cl.exe only on the Qt6 job (choco-installed there);
+          REM the Qt5 job has no sccache, so the launcher flags must stay empty.
+          set "SCCACHE_FLAGS="
+          if "%QT_MAJOR%"=="6" set "SCCACHE_FLAGS=-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DQT_DEFAULT_MAJOR_VERSION=%QT_MAJOR% -DVNOTE_BUILD_TESTS=%VNOTE_TESTS% -DOPENSSL_EXTRA_LIB_DIR=%VX_OPENSSL_EXTRA_LIB_DIR% -DOPENSSL_LICENSE_FILE=%VX_OPENSSL_LICENSE_FILE% %SCCACHE_FLAGS% %GITHUB_WORKSPACE% > cmake-configure.log 2>&1 || (type cmake-configure.log && exit /b 1)
           type cmake-configure.log
           if "%QT_MAJOR%"=="5" (
             findstr /x /c:"USE_HTTPS:STRING=Schannel" CMakeCache.txt || exit /b 1
