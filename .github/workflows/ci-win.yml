@@ -410,12 +410,35 @@ jobs:
           if "%QT_MAJOR%"=="6" call "%VS_CMD%"
           where cl || echo "cl.exe not on PATH"
           if "%QT_MAJOR%"=="6" where sccache || exit /b 1
+          REM lld-link replaces link.exe on the Qt6 job ONLY (cl.exe stays the
+          REM compiler, so the sccache compile cache is untouched; sccache wraps
+          REM compile steps only). CMake's Windows-MSVC link rules invoke
+          REM <CMAKE_LINKER> directly (Windows-MSVC.cmake exe/dll rules), so
+          REM -DCMAKE_LINKER is honored. lld-link is typically 2-4x faster per
+          REM link; the 235 test-exe links were 21min of this job's 45min.
+          REM lld-link generates NO manifests, so /MANIFEST:NO is forced on
+          REM exe AND shared links this leg: otherwise CMake's vs_link_exe /
+          REM vs_link_dll wrappers would still run mt.exe on a manifest file
+          REM lld-link never writes and fail the link (vnote.exe, VTextEdit).
+          REM The current manifest is only link.exe's default asInvoker
+          REM fragment (no DPI/compat sections), so dropping it is inert.
+          set "LLVM_BIN=C:\Program Files\LLVM\bin"
+          if "%QT_MAJOR%"=="6" (
+            if not exist "%LLVM_BIN%\lld-link.exe" choco install llvm -y --no-progress || exit /b 1
+            set "PATH=%LLVM_BIN%;%PATH%"
+            "%LLVM_BIN%\lld-link.exe" --version || exit /b 1
+          )
           REM sccache wraps cl.exe only on the Qt6 job (choco-installed there);
           REM the Qt5 job has no sccache, so the launcher flags must stay empty.
           set "SCCACHE_FLAGS="
           if "%QT_MAJOR%"=="6" set "SCCACHE_FLAGS=-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
-          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DQT_DEFAULT_MAJOR_VERSION=%QT_MAJOR% -DVNOTE_BUILD_TESTS=%VNOTE_TESTS% -DOPENSSL_EXTRA_LIB_DIR=%VX_OPENSSL_EXTRA_LIB_DIR% -DOPENSSL_LICENSE_FILE=%VX_OPENSSL_LICENSE_FILE% %SCCACHE_FLAGS% %GITHUB_WORKSPACE% > cmake-configure.log 2>&1 || (type cmake-configure.log && exit /b 1)
+          REM Unquoted set: the value embeds quotes around the lld-link path
+          REM (contains spaces); a quoted set would strip them.
+          set "LINKER_FLAGS="
+          if "%QT_MAJOR%"=="6" set LINKER_FLAGS=-DCMAKE_LINKER="%LLVM_BIN%\lld-link.exe" -DCMAKE_EXE_LINKER_FLAGS=/MANIFEST:NO -DCMAKE_SHARED_LINKER_FLAGS=/MANIFEST:NO
+          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DQT_DEFAULT_MAJOR_VERSION=%QT_MAJOR% -DVNOTE_BUILD_TESTS=%VNOTE_TESTS% -DOPENSSL_EXTRA_LIB_DIR=%VX_OPENSSL_EXTRA_LIB_DIR% -DOPENSSL_LICENSE_FILE=%VX_OPENSSL_LICENSE_FILE% %SCCACHE_FLAGS% %LINKER_FLAGS% %GITHUB_WORKSPACE% > cmake-configure.log 2>&1 || (type cmake-configure.log && exit /b 1)
           type cmake-configure.log
+          if "%QT_MAJOR%"=="6" findstr /C:"lld-link.exe" CMakeCache.txt || exit /b 1
           if "%QT_MAJOR%"=="5" (
             findstr /x /c:"USE_HTTPS:STRING=Schannel" CMakeCache.txt || exit /b 1
           )
