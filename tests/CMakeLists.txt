@@ -59,6 +59,21 @@ function(add_qt_test NAME)
     target_link_libraries(${NAME} PRIVATE Qt6::Gui Qt6::Widgets)
   endif()
 
+  if(MSVC)
+    # Test exes never ship: skip the linker's default /OPT:REF,ICF dead-strip
+    # and COMDAT-folding passes and its manifest generation + mt.exe embed.
+    # CMake (Windows-MSVC.cmake, verified against 3.31.6) adds no /OPT flags
+    # of its own for MSVC, so these genuinely disable link.exe's Release
+    # defaults; a literal /MANIFEST:NO makes the vs_link_exe wrapper return
+    # before mt.exe. This also removes the /OPT:REF failure class that the
+    # /WHOLEARCHIVE:vxcore workarounds patch; those stay as harmless
+    # belt-and-braces. A future .rc-embedded manifest resource would still
+    # work (resource embedding is independent of this flag). Semantics are
+    # unchanged: tests keep MORE code (NOREF) and fold less (NOICF); binaries
+    # just get bigger, which nothing gates on (tests are never packaged).
+    target_link_options(${NAME} PRIVATE /MANIFEST:NO /OPT:NOREF /OPT:NOICF)
+  endif()
+
   # Set C++ standard
   target_compile_features(${NAME} PRIVATE cxx_std_14)
 
