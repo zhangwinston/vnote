@@ -672,7 +672,7 @@ add_qt_test(test_syncservice
   GUILESS
 )
 if(MSVC)
-  target_link_options(test_syncservice PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_syncservice PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # Follow-up to vxcore-metadata-events: SyncService::maybeTriggerPostReconcile
@@ -691,7 +691,7 @@ add_qt_test(test_sync_service_freshness
 )
 target_compile_definitions(test_sync_service_freshness PRIVATE VNOTE_TESTING)
 if(MSVC)
-  target_link_options(test_sync_service_freshness PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_service_freshness PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T7 (sync-interval-debounce): SyncService trailing-throttle auto-sync debounce.
@@ -710,7 +710,7 @@ add_qt_test(test_sync_service_debounce
 )
 target_compile_definitions(test_sync_service_debounce PRIVATE VNOTE_TESTING)
 if(MSVC)
-  target_link_options(test_sync_service_debounce PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_service_debounce PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T5: NotebookCoreService sync wrapper methods (8 thin C-API wrappers).
@@ -730,7 +730,7 @@ add_qt_test(test_notebookcoreservice_sync
 # backend "git". Other parent sync tests don't exercise the git factory and
 # so don't need this.
 if(MSVC)
-  target_link_options(test_notebookcoreservice_sync PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_notebookcoreservice_sync PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T24: SyncWorker class deleted; test_syncworker.cpp retired with it.
@@ -751,7 +751,7 @@ add_qt_test(test_sync_close_block
 )
 target_compile_definitions(test_sync_close_block PRIVATE VNOTE_TESTING)
 if(MSVC)
-  target_link_options(test_sync_close_block PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_close_block PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # Verifies the Qt-side wiring of the notebook-close → sync runtime release
@@ -770,7 +770,7 @@ add_qt_test(test_sync_close_releases_handles
 )
 target_compile_definitions(test_sync_close_releases_handles PRIVATE VNOTE_TESTING)
 if(MSVC)
-  target_link_options(test_sync_close_releases_handles PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_close_releases_handles PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T2 (sync-queue-convergence): Characterization test for AUTO sync signal
@@ -787,7 +787,7 @@ add_qt_test(test_sync_signal_auto_baseline
 )
 target_compile_definitions(test_sync_signal_auto_baseline PRIVATE VNOTE_TESTING)
 if(MSVC)
-  target_link_options(test_sync_signal_auto_baseline PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_signal_auto_baseline PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # Task 8.1 (F3.1): SyncStateClassifier — pure read-through service that maps
@@ -814,7 +814,7 @@ add_qt_test(test_sync_hooks
   GUILESS
 )
 if(MSVC)
-  target_link_options(test_sync_hooks PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_hooks PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # Task 13.4 (F1.6): SyncService::bootstrapAndPersist atomic enable+persist with
@@ -829,7 +829,7 @@ add_qt_test(test_bootstrap_and_persist
   GUILESS
 )
 if(MSVC)
-  target_link_options(test_bootstrap_and_persist PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_bootstrap_and_persist PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T1 (sync-queue-convergence): characterization test capturing the CURRENT
@@ -845,7 +845,7 @@ add_qt_test(test_sync_signal_baseline
 )
 target_compile_definitions(test_sync_signal_baseline PRIVATE VNOTE_TESTING)
 if(MSVC)
-  target_link_options(test_sync_signal_baseline PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_signal_baseline PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T12 (sync-queue-convergence): SyncOps namespace — stateless free-function
@@ -862,7 +862,7 @@ add_qt_test(test_sync_ops
 )
 target_compile_definitions(test_sync_ops PRIVATE VNOTE_TESTING)
 if(MSVC)
-  target_link_options(test_sync_ops PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_ops PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T17 (sync-queue-convergence): EventBridge sync event routing
@@ -894,7 +894,7 @@ add_qt_test(test_sync_auto_route
 )
 target_compile_definitions(test_sync_auto_route PRIVATE VNOTE_TESTING)
 if(MSVC)
-  target_link_options(test_sync_auto_route PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_sync_auto_route PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 target_include_directories(test_sync_auto_route PRIVATE
   ${CMAKE_SOURCE_DIR}/libs/vxcore/src
@@ -1019,7 +1019,7 @@ if(MSVC)
   # referenced symbol pulls it in -- mirror the existing whole-archive trick
   # used by test_notebookcoreservice_sync so vxcore_sync_clone can resolve
   # the "git" backend.
-  target_link_options(test_notebook_core_service_clone PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_notebook_core_service_clone PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T21 (open-notebook-remote-readonly): NotebookCoreService::isNotebookReadOnly

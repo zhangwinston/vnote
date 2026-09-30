@@ -388,7 +388,7 @@ if(MSVC)
   # git_sync_backend.cpp. MSVC's /OPT:REF drops the .obj if no externally
   # referenced symbol pulls it in -- mirror the trick used by
   # test_notebook_core_service_clone so vxcore_sync_clone resolves "git".
-  target_link_options(test_open_notebook_controller_clone PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_open_notebook_controller_clone PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 
 # T23 (open-notebook-remote-readonly): OpenNotebookInput.readOnly param.

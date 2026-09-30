@@ -729,7 +729,7 @@ target_compile_definitions(test_open_notebook_dialog2_cancel PRIVATE VNOTE_TESTI
 # the file:// clone path works. Mirrors the equivalent block in
 # tests/controllers/CMakeLists.txt for test_open_notebook_controller_clone.
 if(MSVC)
-  target_link_options(test_open_notebook_dialog2_cancel PRIVATE /WHOLEARCHIVE:vxcore)
+  target_link_options(test_open_notebook_dialog2_cancel PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:vxcore>")
 endif()
 set_tests_properties(test_open_notebook_dialog2_cancel PROPERTIES
   TIMEOUT 180
