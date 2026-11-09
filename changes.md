@@ -1,5 +1,7 @@
 # Changes
 
+## Unreleased
+
 ## v4.15.2
 A maintenance release with steadier TODO planning, improved Markdown editing and clearer file navigation on top of VNote 4.15.1:
 
