@@ -19,10 +19,12 @@
 #include "buffersavequeue.h"
 
 #include <QCryptographicHash>
+#include <QDeadlineTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QLoggingCategory>
 #include <QMutexLocker>
+#include <utils/qtcompat.h>
 #include <QSet>
 #include <QTextCodec>
 #include <QThread>
@@ -247,7 +249,8 @@ void BufferSaveQueue::runWorker(const QString &p_key) {
         auto matchesDisk = [&]() {
           const QFileInfo info(job.resolvedPath);
           if (job.canonicalPath.isEmpty() || info.canonicalFilePath() != job.canonicalPath ||
-              !info.isFile() || !info.isWritable() || info.isSymbolicLink() || info.isJunction())
+              !info.isFile() || !info.isWritable() || fileInfoIsSymbolicLink(info) ||
+              fileInfoIsJunction(info))
             return false;
           QFile file(job.resolvedPath);
           QCryptographicHash hash(QCryptographicHash::Sha256);

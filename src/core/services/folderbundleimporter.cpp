@@ -736,7 +736,12 @@ FolderBundleImporter::Result FolderBundleImporter::run(const Request &p_request,
   if (!collectBundleIds(bundleMetadataRoot, &bundleIdList, &fileCount, &folderCount, &error)) {
     return fail(error);
   }
-  const QSet<QString> bundleIds(bundleIdList.begin(), bundleIdList.end());
+  // QList/QSet range constructors are Qt 6 only; an insert loop works on both.
+  QSet<QString> bundleIds;
+  bundleIds.reserve(bundleIdList.size());
+  for (const auto &id : bundleIdList) {
+    bundleIds.insert(id);
+  }
   if (bundleIds.size() != bundleIdList.size()) {
     return fail(QObject::tr("The bundle contains duplicate node ids and cannot be imported."));
   }

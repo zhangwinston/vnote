@@ -375,7 +375,7 @@ QString TaskVariableMgr::evaluate(Task *p_task, const QString &p_text) const {
     if (!var) {
       continue;
     }
-    content += QStringView(p_text).mid(pos, match.capturedStart() - pos);
+    content += QStringView(p_text).mid(pos, match.capturedStart() - pos).toString();
     content += var->evaluate(p_task, match.captured(2).trimmed());
     pos = match.capturedEnd();
   }
@@ -383,7 +383,7 @@ QString TaskVariableMgr::evaluate(Task *p_task, const QString &p_text) const {
     return p_text;
   }
   // Only scan the authored template. Values (including ${shell:...}) are data.
-  content += QStringView(p_text).mid(pos);
+  content += QStringView(p_text).mid(pos).toString();
   return content;
 }
 

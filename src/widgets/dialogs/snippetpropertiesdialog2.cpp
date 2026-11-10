@@ -1,5 +1,6 @@
 #include "snippetpropertiesdialog2.h"
 
+#include <QDebug>
 #include <QJsonObject>
 
 #include <core/servicelocator.h>

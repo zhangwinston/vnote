@@ -1,6 +1,5 @@
 #include "markdownvieweradapter.h"
 
-#include <QByteArrayView>
 #include <QDateTime>
 #include <QMap>
 #include <QPointer>
@@ -17,6 +16,7 @@
 #include <core/logging.h>
 #include <core/servicelocator.h>
 #include <gui/utils/imageutils.h>
+#include <utils/qtcompat.h>
 #include <utils/sectionnumberutils.h>
 #ifdef VTEXTEDIT_ENABLE_TYPST
 #include <vtextedit/typstfragmentrenderer.h>
@@ -94,7 +94,7 @@ QJsonObject typstResult(const vte::TypstFragmentRenderer::Result &p_result) {
   }
   const auto width = p_result.m_sizePt.width();
   const auto height = p_result.m_sizePt.height();
-  const QByteArrayView svg(p_result.m_svg);
+  const QByteArrayViewCompat svg(p_result.m_svg);
   if (!p_result.isSuccess() || svg.isEmpty() || svg.size() > c_maxTypstSvg || !svg.isValidUtf8() ||
       svg.contains('\0') || !std::isfinite(width) || !std::isfinite(height) ||
       !std::isfinite(p_result.m_baselinePt) || width <= 0 || height <= 0 ||

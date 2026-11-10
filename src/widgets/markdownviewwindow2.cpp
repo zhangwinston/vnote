@@ -36,7 +36,11 @@
 #include <QUrl>
 #include <QUuid>
 #include <QVBoxLayout>
+// QWebEngineLoadingInfo and QWebEnginePage::loadingChanged are Qt 6.8+;
+// Qt 5 falls back to loadFinished(bool) below.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
 #include <QWebEngineLoadingInfo>
+#endif
 #include <QWebEngineProfile>
 #include <QWindow>
 
@@ -1421,31 +1425,45 @@ void MarkdownViewWindow2::connectViewerSignals() {
       showMessage(tr("Unable to prepare note for printing"));
     }
   });
+  auto handleViewerLoadFailure = [this]() {
+    m_viewerReady = false;
+    m_viewerPageInitialized = false;
+    cancelEditorImageView(true);
+    if (m_mode == ViewWindowMode::Edit) {
+      setEditViewMode(MarkdownEditorConfig::EditViewMode::EditOnly);
+    }
+    showMessage(tr("Unable to load preview"));
+    if (m_printPending) {
+      m_printPending = false;
+      m_printer.reset();
+      showMessage(tr("Unable to prepare note for printing"));
+    }
+    if (m_presentationRequested) {
+      qWarning() << "Markdown presentation failed: viewer page did not load";
+      setPresentationMode(false);
+      showMessage(tr("Unable to start presentation"));
+    }
+  };
+#if QT_VERSION >= QT_VERSION_CHECK(6, 8, 0)
   connect(m_viewer->page(), &QWebEnginePage::loadingChanged, this,
-          [this, current](const QWebEngineLoadingInfo &p_info) {
+          [this, current, handleViewerLoadFailure](const QWebEngineLoadingInfo &p_info) {
             // Replacing a still-loading document stops the outgoing navigation.
             // Its late stop is not a failure of the incoming page.
             if (!current() || p_info.status() != QWebEngineLoadingInfo::LoadFailedStatus) {
               return;
             }
-            m_viewerReady = false;
-            m_viewerPageInitialized = false;
-            cancelEditorImageView(true);
-            if (m_mode == ViewWindowMode::Edit) {
-              setEditViewMode(MarkdownEditorConfig::EditViewMode::EditOnly);
-            }
-            showMessage(tr("Unable to load preview"));
-            if (m_printPending) {
-              m_printPending = false;
-              m_printer.reset();
-              showMessage(tr("Unable to prepare note for printing"));
-            }
-            if (m_presentationRequested) {
-              qWarning() << "Markdown presentation failed: viewer page did not load";
-              setPresentationMode(false);
-              showMessage(tr("Unable to start presentation"));
-            }
+            handleViewerLoadFailure();
           });
+#else
+  // Qt 5 WebEngine has no loadingChanged(); loadFinished(false) is its failure signal.
+  connect(m_viewer->page(), &QWebEnginePage::loadFinished, this,
+          [this, current, handleViewerLoadFailure](bool p_ok) {
+            if (!current() || p_ok) {
+              return;
+            }
+            handleViewerLoadFailure();
+          });
+#endif
 
   // Viewer ready signal.
   connect(adapterObj, &MarkdownViewerAdapter::ready, this, [this, current]() {
@@ -1889,7 +1907,7 @@ bool MarkdownViewWindow2::outlineSourceWriterCurrent() const {
     VxCoreError error = VXCORE_OK;
     const auto raw = buffer.peekContentRaw(&error);
     const auto encoded = buffers->encodeContent(buffer.id(), text);
-    if (error != VXCORE_OK || raw != QByteArrayView(encoded)) {
+    if (error != VXCORE_OK || raw != QByteArrayViewCompat(encoded)) {
       return false;
     }
   }

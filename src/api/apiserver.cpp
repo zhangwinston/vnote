@@ -10,7 +10,12 @@
 #include <QJsonParseError>
 #include <QMap>
 #include <QRegularExpression>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QStringDecoder>
+#else
+// QStringDecoder is Qt 6 only; on Qt 5 QTextCodec is native QtCore.
+#include <QTextCodec>
+#endif
 #include <QThread>
 #include <QUuid>
 #include <chrono>
@@ -40,11 +45,11 @@ HttpResponse problem(const ApiError &p_error, const QString &p_requestId) {
                       {"X-Content-Type-Options", "nosniff"},
                       {"X-Request-Id", p_requestId.toLatin1()}};
   if (p_error.status == 401) {
-    response.headers.emplaceBack(QByteArrayLiteral("WWW-Authenticate"),
-                                 QByteArrayLiteral("Bearer realm=\"vnote\""));
+    response.headers.append({QByteArrayLiteral("WWW-Authenticate"),
+                              QByteArrayLiteral("Bearer realm=\"vnote\"")});
   }
   if (p_error.status == 429 || p_error.status == 503) {
-    response.headers.emplaceBack(QByteArrayLiteral("Retry-After"), QByteArrayLiteral("1"));
+    response.headers.append({QByteArrayLiteral("Retry-After"), QByteArrayLiteral("1")});
   }
   return response;
 }
@@ -72,7 +77,7 @@ bool id(const QString &p_value) {
 }
 
 bool validText(const QString &p_text) {
-  for (qsizetype i = 0; i < p_text.size(); ++i) {
+  for (int i = 0; i < p_text.size(); ++i) {
     if (p_text[i].isHighSurrogate()) {
       if (++i == p_text.size() || !p_text[i].isLowSurrogate()) {
         return false;
@@ -98,14 +103,14 @@ bool name(const QString &p_name) {
   // Windows resolves device names even with a file extension. Keep names
   // portable and reject those aliases before any backend filesystem operation.
   const auto dot = p_name.indexOf('.');
-  const auto stem = QStringView(p_name).first(dot < 0 ? p_name.size() : dot).trimmed();
+  const auto stem = QStringView(p_name).left(dot < 0 ? p_name.size() : dot).trimmed();
   for (const auto reserved : {"CON", "PRN", "AUX", "NUL", "CLOCK$", "CONIN$", "CONOUT$"}) {
-    if (stem.compare(QLatin1String(reserved), Qt::CaseInsensitive) == 0) {
+    if (stem.compare(QString::fromLatin1(reserved), Qt::CaseInsensitive) == 0) {
       return false;
     }
   }
-  if (stem.size() == 4 && (stem.first(3).compare(QLatin1String("COM"), Qt::CaseInsensitive) == 0 ||
-                           stem.first(3).compare(QLatin1String("LPT"), Qt::CaseInsensitive) == 0)) {
+  if (stem.size() == 4 && (stem.left(3).compare(QStringLiteral("COM"), Qt::CaseInsensitive) == 0 ||
+                           stem.left(3).compare(QStringLiteral("LPT"), Qt::CaseInsensitive) == 0)) {
     const auto digit = stem.back().unicode();
     if ((digit >= '1' && digit <= '9') || digit == 0x00b9 || digit == 0x00b2 || digit == 0x00b3) {
       return false;
@@ -118,7 +123,7 @@ bool decode(const QByteArray &p_raw, QString *p_value) {
   auto hex = [](char ch) {
     return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F');
   };
-  for (qsizetype i = 0; i < p_raw.size(); ++i) {
+  for (int i = 0; i < p_raw.size(); ++i) {
     if (p_raw[i] == '%') {
       if (i + 2 >= p_raw.size() || !hex(p_raw[i + 1]) || !hex(p_raw[i + 2])) {
         return false;
@@ -126,9 +131,31 @@ bool decode(const QByteArray &p_raw, QString *p_value) {
       i += 2;
     }
   }
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   QStringDecoder decoder(QStringDecoder::Utf8);
   *p_value = decoder.decode(QByteArray::fromPercentEncoding(p_raw));
   return !decoder.hasError() && validText(*p_value);
+#else
+  // Same UTF-8 validation on Qt 5: ConverterState counts invalid input and a
+  // trailing partial sequence, mirroring QStringDecoder::hasError().
+  auto *codec = QTextCodec::codecForName("UTF-8");
+  const QByteArray percentDecoded = QByteArray::fromPercentEncoding(p_raw);
+  QTextCodec::ConverterState state;
+  *p_value = codec->toUnicode(percentDecoded.constData(), static_cast<int>(percentDecoded.size()),
+                              &state);
+  return !state.invalidChars && !state.remainingChars && validText(*p_value);
+#endif
+}
+
+bool validUtf8(const QByteArray &p_bytes) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 1, 0)
+  return p_bytes.isValidUtf8();
+#else
+  // QByteArray::isValidUtf8() is Qt 6.1+; on Qt 5 round-trip through the UTF-8
+  // codec and compare, which rejects invalid and truncated sequences.
+  auto *codec = QTextCodec::codecForName("UTF-8");
+  return codec->fromUnicode(codec->toUnicode(p_bytes)) == p_bytes;
+#endif
 }
 
 bool query(const QByteArray &p_raw, QMap<QString, QString> *p_query) {
@@ -138,8 +165,8 @@ bool query(const QByteArray &p_raw, QMap<QString, QString> *p_query) {
   for (const auto &pair : p_raw.split('&')) {
     const auto separator = pair.indexOf('=');
     QString key, value;
-    if (separator < 1 || !decode(pair.first(separator), &key) ||
-        !decode(pair.sliced(separator + 1), &value) || value.isEmpty() || p_query->contains(key)) {
+    if (separator < 1 || !decode(pair.left(separator), &key) ||
+        !decode(pair.mid(separator + 1), &value) || value.isEmpty() || p_query->contains(key)) {
       return false;
     }
     p_query->insert(key, value);
@@ -171,7 +198,7 @@ private:
         break;
       }
     }
-    return m_bytes.sliced(start, m_pos - start);
+    return m_bytes.mid(start, m_pos - start);
   }
   bool value(int p_depth) {
     if (p_depth > 32) {
@@ -224,7 +251,7 @@ private:
     return true;
   }
   const QByteArray &m_bytes;
-  qsizetype m_pos = 0;
+  int m_pos = 0;
 };
 
 struct Route {
@@ -243,7 +270,7 @@ ApiError parseRoute(const HttpRequest &p_request, Route *p_route, bool p_headers
     return invalid(QStringLiteral("Invalid request target"));
   }
   const auto question = p_request.target.indexOf('?');
-  const auto path = question < 0 ? p_request.target : p_request.target.first(question);
+  const auto path = question < 0 ? p_request.target : p_request.target.left(question);
   if (path.contains('%') || path.contains("//") || path.endsWith('/')) {
     return invalid(QStringLiteral("Invalid request path"));
   }
@@ -319,7 +346,7 @@ ApiError parseRoute(const HttpRequest &p_request, Route *p_route, bool p_headers
     return {405, QStringLiteral("method_not_allowed"), QStringLiteral("Method not allowed")};
   }
   QMap<QString, QString> values;
-  if (!query(question < 0 ? QByteArray() : p_request.target.sliced(question + 1), &values)) {
+  if (!query(question < 0 ? QByteArray() : p_request.target.mid(question + 1), &values)) {
     return invalid();
   }
   QSet<QString> allowedQuery;
@@ -386,12 +413,12 @@ ApiError parseRoute(const HttpRequest &p_request, Route *p_route, bool p_headers
         !version.endsWith('"')) {
       return invalid(QStringLiteral("Supply exactly one strong If-Match validator"));
     }
-    for (qsizetype i = 1; i < version.size() - 1; ++i) {
+    for (int i = 1; i < version.size() - 1; ++i) {
       if (version[i] <= 32 || version[i] >= 127 || version[i] == '"' || version[i] == ',') {
         return invalid(QStringLiteral("Supply exactly one strong If-Match validator"));
       }
     }
-    cmd.expectedVersion = QString::fromLatin1(version.sliced(1, version.size() - 2));
+    cmd.expectedVersion = QString::fromLatin1(version.mid(1, version.size() - 2));
   } else if (p_request.headerCount("If-Match")) {
     return invalid(QStringLiteral("If-Match is not accepted on this route"));
   }
@@ -422,7 +449,7 @@ ApiError parseRoute(const HttpRequest &p_request, Route *p_route, bool p_headers
   }
   QJsonParseError parseError;
   const auto document = QJsonDocument::fromJson(p_request.body, &parseError);
-  if (!p_request.body.isValidUtf8() || parseError.error != QJsonParseError::NoError ||
+  if (!validUtf8(p_request.body) || parseError.error != QJsonParseError::NoError ||
       !document.isObject() || !UniqueJsonKeys(p_request.body).check()) {
     return invalid(QStringLiteral("The body must be a unique-key UTF-8 JSON object"));
   }
@@ -552,10 +579,10 @@ struct ApiServer::Impl {
       return std::nullopt;
     }
     const auto authorization = p_request.header("Authorization");
-    if (authorization.size() != 83 || authorization.first(7).toLower() != "bearer ") {
+    if (authorization.size() != 83 || authorization.left(7).toLower() != "bearer ") {
       return std::nullopt;
     }
-    return auth.authenticate(authorization.sliced(7));
+    return auth.authenticate(authorization.mid(7));
   }
 
   std::optional<HttpResponse> admit(HttpRequest &p_request) const {
@@ -591,7 +618,7 @@ struct ApiServer::Impl {
     if (error.status) {
       auto response = problem(error, requestId);
       if (error.status == 405) {
-        response.headers.emplaceBack(QByteArrayLiteral("Allow"), route.allowed);
+        response.headers.append({QByteArrayLiteral("Allow"), route.allowed});
       }
       return response;
     }
@@ -709,8 +736,8 @@ struct ApiServer::Impl {
                             {QStringLiteral("committed"), false},
                             {QStringLiteral("saved"), false}},
                            requestId, 202);
-      response.headers.emplaceBack(QByteArrayLiteral("Location"),
-                                   QByteArrayLiteral("/api/v1/operations/") + operation.toLatin1());
+      response.headers.append({QByteArrayLiteral("Location"),
+                               QByteArrayLiteral("/api/v1/operations/") + operation.toLatin1()});
       return response;
     }
     auto waiter = std::make_shared<Waiter>();

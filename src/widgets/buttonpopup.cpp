@@ -12,6 +12,8 @@
 #include <QWidgetAction>
 #include <QWindow>
 
+#include <utils/qtcompat.h>
+
 using namespace vnotex;
 
 namespace {
@@ -291,7 +293,7 @@ bool ButtonPopup::eventFilter(QObject *p_object, QEvent *p_event) {
       const auto generation = m_openGeneration;
       // The panel stays visible while its child dialog closes. Restore native
       // activation after completion, not during the dialog's native hide path.
-      connect(
+      connectSingleShot(
           dialog, &QDialog::finished, this,
           [this, generation, closed = QPointer<QDialog>(dialog)] {
             if ((closed && (closed->isVisible() || !ownsObject(closed))) ||
@@ -300,7 +302,7 @@ bool ButtonPopup::eventFilter(QObject *p_object, QEvent *p_event) {
             }
             activateOpening(generation, closed.data());
           },
-          static_cast<Qt::ConnectionType>(Qt::QueuedConnection | Qt::SingleShotConnection));
+          Qt::QueuedConnection);
     }
   }
   if (type == QEvent::InputMethod && ownsObject(p_object)) {

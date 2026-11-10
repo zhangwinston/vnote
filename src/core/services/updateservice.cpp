@@ -222,7 +222,12 @@ bool UpdateService::findLatestRelease(QNetworkAccessManager &p_nam, UpdateInfo *
     const QString nextPath = next.path(QUrl::FullyEncoded);
     if (nextPath.startsWith(tagPrefix)) {
       const QString version = nextPath.mid(tagPrefix.size());
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
       qsizetype suffix = 0;
+#else
+      // Qt 5's overload takes int *.
+      int suffix = 0;
+#endif
       const QVersionNumber latest = QVersionNumber::fromString(version, &suffix);
       if (latest.segmentCount() != 3 || suffix != version.size()) {
         *p_error = tr("The latest release could not be identified.");

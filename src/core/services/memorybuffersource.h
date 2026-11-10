@@ -2,10 +2,10 @@
 #define MEMORYBUFFERSOURCE_H
 
 #include <QByteArray>
-#include <QByteArrayView>
 #include <QString>
 
 #include <functional>
+#include <utils/qtcompat.h>
 #include <vxcore/vxcore_types.h>
 
 namespace vnotex {
@@ -31,7 +31,7 @@ struct MemoryBufferSource {
   // this snapshot is saved. With finalizeSave, success means only staged: GUI
   // finalization and core completion must both succeed to acknowledge durability.
   // Without a saver the document is editable scratch content, not durable.
-  std::function<VxCoreError(QByteArrayView)> save;
+  std::function<VxCoreError(QByteArrayViewCompat)> save;
 
   // Optional owner-thread commit of the exact snapshot staged by save; requires
   // save. Autosave follows the normal policy. Each stage and its finalization

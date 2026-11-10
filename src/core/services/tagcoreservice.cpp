@@ -1,5 +1,6 @@
 #include "tagcoreservice.h"
 
+#include <QDebug>
 #include <QJsonDocument>
 #include <QJsonParseError>
 

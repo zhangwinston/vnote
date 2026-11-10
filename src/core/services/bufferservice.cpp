@@ -792,13 +792,13 @@ void BufferService::startContentReplacement(int p_token) {
     const auto relative = QDir(root).relativeFilePath(request->canonicalPath);
     if (root.isEmpty() || request->canonicalPath.isEmpty() || QDir::isAbsolutePath(relative) ||
         relative == QLatin1String("..") || relative.startsWith(QLatin1String("../")) ||
-        file.isSymbolicLink() || file.isJunction()) {
+        fileInfoIsSymbolicLink(file) || fileInfoIsJunction(file)) {
       fail(tr("The note path is unavailable."), QStringLiteral("not_found"));
       return;
     }
     for (QFileInfo part = file; part.absoluteFilePath() != root;
          part = QFileInfo(part.absolutePath())) {
-      if (part.isSymbolicLink() || part.isJunction() || part.isRoot()) {
+      if (fileInfoIsSymbolicLink(part) || fileInfoIsJunction(part) || part.isRoot()) {
         fail(tr("Linked note paths are unavailable."), QStringLiteral("not_found"));
         return;
       }
@@ -1552,7 +1552,7 @@ Buffer2 BufferService::openMemoryBuffer(MemoryBufferSource p_source,
       if (p_size > static_cast<size_t>(std::numeric_limits<qsizetype>::max()))
         return VXCORE_ERR_OUT_OF_MEMORY;
       return static_cast<MemoryBufferSource *>(p_user)->save(
-          QByteArrayView(static_cast<const char *>(p_data), static_cast<qsizetype>(p_size)));
+          QByteArrayViewCompat(static_cast<const char *>(p_data), static_cast<int>(p_size)));
     };
   }
   callbacks.destroy = [](void *p_user) { delete static_cast<MemoryBufferSource *>(p_user); };
@@ -2297,7 +2297,7 @@ bool BufferService::syncMemoryContent(const QString &p_bufferId, const QByteArra
   const auto old = BufferCoreService::peekContentRaw(p_bufferId, &error);
   if (error != VXCORE_OK)
     return false;
-  if (old == QByteArrayView(p_content))
+  if (old == QByteArrayViewCompat(p_content))
     return true;
   return BufferCoreService::setContentRaw(p_bufferId, p_content);
 }

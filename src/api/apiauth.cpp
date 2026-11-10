@@ -31,8 +31,18 @@ bool fail(QString *p_error, const char *p_message) {
   return false;
 }
 
+QSet<QString> toSet(const QStringList &p_list) {
+  // QList/QSet range constructors are Qt 6 only; an insert loop works on both.
+  QSet<QString> set;
+  set.reserve(p_list.size());
+  for (const auto &value : p_list) {
+    set.insert(value);
+  }
+  return set;
+}
+
 QJsonArray strings(const QSet<QString> &p_values) {
-  QStringList sorted(p_values.begin(), p_values.end());
+  QStringList sorted(p_values.values());
   sorted.sort();
   return QJsonArray::fromStringList(sorted);
 }
@@ -203,7 +213,7 @@ bool ApiAuth::load(QString *p_error) {
     if (!expiresAt.isNull()) {
       record.expiresAt = QDateTime::fromString(expiresAt.toString(), Qt::ISODateWithMs);
     }
-    if (QSet<QString>(objectKeys.begin(), objectKeys.end()) != keys ||
+    if (toSet(objectKeys) != keys ||
         !hexId.match(record.principal.tokenId).hasMatch() ||
         records.contains(record.principal.tokenId) || record.label.trimmed().isEmpty() ||
         record.label.size() > 128 || !hexDigest.match(verifier).hasMatch() ||
@@ -288,7 +298,7 @@ ApiAuth::IssueResult ApiAuth::issue(const ApiTokenGrant &p_grant, ApiIssuedToken
   }
   Record record;
   do {
-    record.principal.tokenId = QString::fromLatin1(randomBytes().first(16).toHex());
+    record.principal.tokenId = QString::fromLatin1(randomBytes().left(16).toHex());
   } while (next.contains(record.principal.tokenId));
   const auto secret =
       randomBytes().toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
@@ -359,7 +369,7 @@ std::optional<ApiPrincipal> ApiAuth::authenticate(const QByteArray &p_bearerValu
   }
   const auto digest = QCryptographicHash::hash(p_bearerValue, QCryptographicHash::Sha256);
   std::shared_lock lock(m_state->mutex);
-  const auto it = m_state->records.constFind(QString::fromLatin1(p_bearerValue.first(32)));
+  const auto it = m_state->records.constFind(QString::fromLatin1(p_bearerValue.left(32)));
   // Always compare a full digest, including for unknown token IDs.
   static const QByteArray absentVerifier(32, '\0');
   const QByteArray &expected = it == m_state->records.cend() ? absentVerifier : it->verifier;

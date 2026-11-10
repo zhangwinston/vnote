@@ -45,6 +45,7 @@
 #include <export/exportstylesheet.h>
 #include <gui/services/themeservice.h>
 #include <gui/utils/iconutils.h>
+#include <utils/qtcompat.h>
 #include <vxcore/notebook_json_keys.h>
 
 #include "../locationinputwithbrowsebutton.h"
@@ -809,10 +810,11 @@ void ExportDialog2::setupUI() {
     }
   });
 
-  connect(m_sourceCombo, &QComboBox::currentIndexChanged, this,
+  connect(m_sourceCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
           &ExportDialog2::updateSourceCapabilities);
   connect(m_recursiveCheck, &QCheckBox::toggled, this, &ExportDialog2::updateSourceCapabilities);
-  connect(m_formatCombo, &QComboBox::currentIndexChanged, this, [this](int p_index) {
+  connect(m_formatCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
+          [this](int p_index) {
     if (p_index >= 0) {
       m_targetFormat = static_cast<ExportFormat>(m_formatCombo->itemData(p_index).toInt());
     }
@@ -1386,29 +1388,30 @@ void ExportDialog2::updateOptionVisibility() {
   const bool htmlOptions = html && groups.testFlag(ExportOptionGroup::Html);
   for (auto *field : {m_embedStylesCheck, m_embedImagesCheck, m_completePageCheck,
                       m_addOutlinePanelCheck, m_scrollableCheck}) {
-    m_htmlLayout->setRowVisible(field, htmlOptions);
+    formLayoutSetRowVisible(m_htmlLayout, field, htmlOptions);
   }
-  m_htmlLayout->setRowVisible(m_useMimeHtmlFormatCheck, false);
+  formLayoutSetRowVisible(m_htmlLayout, m_useMimeHtmlFormatCheck, false);
   m_embedImagesCheck->setEnabled(m_completePageCheck->isChecked());
 
-  m_pdfLayout->setRowVisible(m_pageLayoutBtn, pdf && groups.testFlag(ExportOptionGroup::PdfLayout));
-  m_pdfLayout->setRowVisible(m_addTableOfContentsCheck,
-                             pdf && groups.testFlag(ExportOptionGroup::PdfToc));
+  formLayoutSetRowVisible(m_pdfLayout, m_pageLayoutBtn,
+                          pdf && groups.testFlag(ExportOptionGroup::PdfLayout));
+  formLayoutSetRowVisible(m_pdfLayout, m_addTableOfContentsCheck,
+                          pdf && groups.testFlag(ExportOptionGroup::PdfToc));
   const bool wkhtmltopdf = pdf && groups.testFlag(ExportOptionGroup::Wkhtmltopdf);
-  m_pdfLayout->setRowVisible(m_useWkhtmltopdfCheck, wkhtmltopdf);
+  formLayoutSetRowVisible(m_pdfLayout, m_useWkhtmltopdfCheck, wkhtmltopdf);
   for (auto *field :
        {m_wkhtmltopdfExePathEdit, m_wkhtmltopdfArgsEdit, m_pdfHeaderLeftEdit, m_pdfHeaderCenterEdit,
         m_pdfHeaderRightEdit, m_pdfFooterLeftEdit, m_pdfFooterCenterEdit, m_pdfFooterRightEdit}) {
-    m_pdfLayout->setRowVisible(field, wkhtmltopdf);
+    formLayoutSetRowVisible(m_pdfLayout, field, wkhtmltopdf);
   }
   m_pdfAllInOneAvailable = batch && allHtmlPdf && m_useWkhtmltopdfCheck->isChecked();
-  m_pdfLayout->setRowVisible(m_pdfAllInOneCheck, m_pdfAllInOneAvailable);
+  formLayoutSetRowVisible(m_pdfLayout, m_pdfAllInOneCheck, m_pdfAllInOneAvailable);
   updatePdfWidgetsByWkhtmltopdf();
 
-  m_customLayout->setRowVisible(m_customAllInOneCheck, custom && batch);
-  m_customLayout->setRowVisible(m_targetScrollableCheck,
-                                custom && m_useHtmlInputCheck->isChecked() &&
-                                    groups.testFlag(ExportOptionGroup::CustomScrollable));
+  formLayoutSetRowVisible(m_customLayout, m_customAllInOneCheck, custom && batch);
+  formLayoutSetRowVisible(m_customLayout, m_targetScrollableCheck,
+                          custom && m_useHtmlInputCheck->isChecked() &&
+                              groups.testFlag(ExportOptionGroup::CustomScrollable));
 
   QString nativeInfo;
   if (hasTarget) {
