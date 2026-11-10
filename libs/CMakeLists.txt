@@ -24,7 +24,15 @@ add_subdirectory(QHotkey)
 # set(CMAKE_MSVC_RUNTIME_LIBRARY ... FORCE) (libs/vxcore/third_party/CMakeLists.txt)
 # ahead of vtextedit's configure, applying it to syntax-highlighting, katevi,
 # sonnet, hunspell and VTextEdit. Do not reorder.
-set(VTEXTEDIT_ENABLE_TYPST ON CACHE BOOL "Build the required native Typst editor" FORCE)
+# The native Typst editor stack (typstcompiler, VTextEditTypst) needs Qt6Pdf;
+# the Qt 5.15 / Windows 7 variant builds without it, and vnote guards its own
+# Typst call sites with the VTEXTEDIT_ENABLE_TYPST compile definition that
+# vtextedit exports only when this is ON.
+if(QT_DEFAULT_MAJOR_VERSION GREATER 5)
+    set(VTEXTEDIT_ENABLE_TYPST ON CACHE BOOL "Build the required native Typst editor" FORCE)
+else()
+    set(VTEXTEDIT_ENABLE_TYPST OFF CACHE BOOL "Typst editor requires Qt 6" FORCE)
+endif()
 set(VTEXTEDIT_BUILD_DEMOS OFF CACHE BOOL "Disable vtextedit demo applications" FORCE)
 set(VTEXTEDIT_BUILD_TESTS ${VNOTE_BUILD_TESTS} CACHE BOOL "Build vtextedit tests with VNote tests" FORCE)
 add_subdirectory(vtextedit)

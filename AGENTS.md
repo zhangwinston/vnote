@@ -8,7 +8,7 @@ Module-specific detail lives in the child `AGENTS.md` that owns the code — see
 
 - **Git** (with Git Bash on Windows)
 - **CMake** 3.21+
-- **Qt** 6.9+ (with QtWebEngine and Core5Compat) for the default build; the Windows leg also retains a **Qt 5.15.2 / Windows 7** variant in CI
+- **Qt** 6.9+ (with QtWebEngine and Core5Compat) for the default build; the Windows leg also retains a **Qt 5.15.2 / Windows 7** variant in CI. The native Typst editor and the pdf.js PDF viewer are Qt 6-only in that variant (`VTEXTEDIT_ENABLE_TYPST` guards the former, `QT_VERSION >= 6.9` the latter); on Qt 5, `.typst` and `.pdf` files open via the system default application.
 - **C++20-capable compiler** (MSVC, GCC, Clang) for the syntax indexer; VNote uses C++17
 - **Python 3** for syntax catalog generation
 - **clang-format** (optional, for automatic code formatting)

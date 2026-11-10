@@ -65,7 +65,22 @@ list(APPEND VX_QM_FILES
 # Resources
 set(VX_RESOURCE_FILES data/core/core.qrc)
 set(VX_EXTRA_RESOURCE_FILES_RCC ${CMAKE_CURRENT_BINARY_DIR}/vnote_extra.rcc)
-qt_add_binary_resources(VX_EXTRA_RESOURCE data/extra/extra.qrc DESTINATION ${VX_EXTRA_RESOURCE_FILES_RCC} OPTIONS -compress 9)
+set(VX_EXTRA_QRC_FILE ${CMAKE_CURRENT_LIST_DIR}/data/extra/extra.qrc)
+if(NOT QT_DEFAULT_MAJOR_VERSION GREATER 5)
+    # The pdf.js viewer (served over the Qt >= 6.9 only vxpdf:// scheme) never
+    # runs in the Qt 5.15 / Windows 7 variant; keep its ~10 MB asset tree out of
+    # that package. Nothing on Qt 5 resolves these resources.
+    file(STRINGS "${VX_EXTRA_QRC_FILE}" VX_EXTRA_QRC_LINES)
+    list(FILTER VX_EXTRA_QRC_LINES EXCLUDE REGEX ">web/pdf\\.js/")
+    list(LENGTH VX_EXTRA_QRC_LINES VX_EXTRA_QRC_COUNT)
+    string(REPLACE ";" "\n" VX_EXTRA_QRC_TEXT "${VX_EXTRA_QRC_LINES}")
+    string(APPEND VX_EXTRA_QRC_TEXT "\n")
+    set(VX_EXTRA_QRC_FILE ${CMAKE_CURRENT_BINARY_DIR}/extra-qt5.qrc)
+    file(WRITE "${VX_EXTRA_QRC_FILE}" "${VX_EXTRA_QRC_TEXT}")
+    message(STATUS "Qt 5 build: pdf.js assets excluded from extra resources "
+                   "(${VX_EXTRA_QRC_COUNT} entries)")
+endif()
+qt_add_binary_resources(VX_EXTRA_RESOURCE ${VX_EXTRA_QRC_FILE} DESTINATION ${VX_EXTRA_RESOURCE_FILES_RCC} OPTIONS -compress 9)
 
 add_executable(vnote WIN32 MACOSX_BUNDLE
     application.cpp application.h
@@ -78,25 +93,33 @@ add_executable(vnote WIN32 MACOSX_BUNDLE
 add_dependencies(vnote VX_EXTRA_RESOURCE)
 
 # Always refresh runtime dependencies, including builds that do not relink vnote.
-add_custom_target(vnote_typst_runtime)
-add_dependencies(vnote_typst_runtime VTextEditTypst VTextEdit)
-if(WIN32)
-    # VNote's package is flat: the required DLL must never land in pruned lib/bin.
-    add_custom_command(TARGET vnote_typst_runtime
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:vnote>"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:VTextEdit>" "$<TARGET_FILE:VTextEditTypst>"
-            "$<TARGET_FILE_DIR:vnote>"
-        VERBATIM
-    )
-elseif(APPLE)
-    # macOS packages the build bundle directly, not the ordinary install tree.
-    add_custom_command(TARGET vnote_typst_runtime
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:vnote>/../Frameworks"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:VTextEditTypst>" "$<TARGET_FILE_DIR:vnote>/../Frameworks"
-        VERBATIM
-    )
+# The VTextEditTypst target only exists when the native Typst editor is built
+# (Qt 6 only; see libs/CMakeLists.txt); the RPATH settings below apply to every
+# build because VTextEdit itself is always a runtime dependency.
+if(VTEXTEDIT_ENABLE_TYPST)
+    add_custom_target(vnote_typst_runtime)
+    add_dependencies(vnote_typst_runtime VTextEditTypst VTextEdit)
+    if(WIN32)
+        # VNote's package is flat: the required DLL must never land in pruned lib/bin.
+        add_custom_command(TARGET vnote_typst_runtime
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:vnote>"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:VTextEdit>" "$<TARGET_FILE:VTextEditTypst>"
+                "$<TARGET_FILE_DIR:vnote>"
+            VERBATIM
+        )
+    elseif(APPLE)
+        # macOS packages the build bundle directly, not the ordinary install tree.
+        add_custom_command(TARGET vnote_typst_runtime
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:vnote>/../Frameworks"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:VTextEditTypst>" "$<TARGET_FILE_DIR:vnote>/../Frameworks"
+            VERBATIM
+        )
+    endif()
+    add_dependencies(vnote vnote_typst_runtime)
+endif()
+if(APPLE)
     set_property(TARGET vnote APPEND PROPERTY BUILD_RPATH "@executable_path/../Frameworks")
     set_property(TARGET vnote APPEND PROPERTY INSTALL_RPATH "@executable_path/../Frameworks")
 elseif(UNIX)
@@ -104,7 +127,6 @@ elseif(UNIX)
     set_property(TARGET vnote APPEND PROPERTY INSTALL_RPATH "$ORIGIN/${VX_RUNTIME_LIBDIR}")
     set_property(TARGET vnote PROPERTY BUILD_RPATH_USE_ORIGIN TRUE)
 endif()
-add_dependencies(vnote vnote_typst_runtime)
 
 if(APPLE)
     # application.cpp hosts the native NSServices provider ("Create Note in

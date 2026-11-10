@@ -47,11 +47,14 @@ void EditorPage::setupUI() {
   };
   addViewHint(QObject::tr("Readable Width"), tr("Center the content in a readable-width area"));
   viewLayout->addWidget(SettingsPageHelper::createSeparator(this));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
   addViewHint(
       tr("PDF view window"),
       tr("Cursor chooses text selection or hand panning, Scroll Mode controls page flow, and "
          "Spread Mode arranges facing pages"));
   viewLayout->addWidget(SettingsPageHelper::createSeparator(this));
+#endif
+#ifdef VTEXTEDIT_ENABLE_TYPST
   addViewHint(
       tr("Typst previews"),
       tr("In Edit mode, Live Preview shows the compiled PDF beside the source and "
@@ -61,6 +64,7 @@ void EditorPage::setupUI() {
       tr("Typst preview colors"),
       tr("Theme Style in Preview uses theme colors for the default page background and text "
          "(explicit document styles take precedence and exports are unchanged)"));
+#endif
 
   auto *cardLayout = SettingsPageHelper::addSection(mainLayout, tr("Editor"), QString(), this);
 

@@ -21,10 +21,16 @@ target_sources(vnote PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/webviewjobs.h
     ${CMAKE_CURRENT_SOURCE_DIR}/webviewservice.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/webviewservice.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/vxpdfschemehandler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/vxpdfschemehandler.h
 )
 
 target_include_directories(vnote PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/..
 )
+
+# The vxpdf:// scheme handler serves the pdf.js viewer (Qt >= 6.9 only).
+if(QT_DEFAULT_MAJOR_VERSION GREATER 5)
+    target_sources(vnote PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/vxpdfschemehandler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/vxpdfschemehandler.h
+    )
+endif()

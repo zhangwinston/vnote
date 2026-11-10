@@ -1312,6 +1312,7 @@ bool MarkdownViewWindow2::setupViewer() {
   if (m_protectedView) {
     auto *profiles = getServices().get<WebEngineProfileService>();
     auto *profile = m_protectedView->page.profile;
+#ifdef VTEXTEDIT_ENABLE_TYPST
     adapterObj->setProtectedTypstAuthorization(m_protectedView->page.isAuthorized);
     connect(profiles, &WebEngineProfileService::protectedProfileRevoked, adapterObj,
             [adapterObj, profile](QWebEngineProfile *p_profile) {
@@ -1321,6 +1322,7 @@ bool MarkdownViewWindow2::setupViewer() {
     connect(profile, &QObject::destroyed, adapterObj, &MarkdownViewerAdapter::revokeProtectedTypst);
     connect(profiles, &QObject::destroyed, adapterObj,
             &MarkdownViewerAdapter::revokeProtectedTypst);
+#endif // VTEXTEDIT_ENABLE_TYPST
   }
   m_viewer->setController(m_windowController);
   updateSectionNumberOptions();
