@@ -18,11 +18,14 @@
 #include <core/servicelocator.h>
 #include <gui/utils/imageutils.h>
 #include <utils/sectionnumberutils.h>
+#ifdef VTEXTEDIT_ENABLE_TYPST
 #include <vtextedit/typstfragmentrenderer.h>
 #include <vtextedit/typstruntime.h>
+#endif // VTEXTEDIT_ENABLE_TYPST
 
 using namespace vnotex;
 
+#ifdef VTEXTEDIT_ENABLE_TYPST
 namespace {
 constexpr qsizetype c_maxTypstSource = 64 * 1024;
 constexpr qsizetype c_maxTypstQueuedSource = 2 * 1024 * 1024;
@@ -106,6 +109,7 @@ QJsonObject typstResult(const vte::TypstFragmentRenderer::Result &p_result) {
           {QStringLiteral("error"), QString()}};
 }
 } // namespace
+#endif // VTEXTEDIT_ENABLE_TYPST
 
 MarkdownViewerAdapter::Position::Position(int p_lineNumber, const QString &p_anchor)
     : m_lineNumber(p_lineNumber), m_anchor(p_anchor) {}
@@ -132,12 +136,14 @@ MarkdownViewerAdapter::MarkdownViewerAdapter(ServiceLocator &p_services, QObject
     : WebViewAdapter(p_parent), m_services(&p_services) {}
 
 MarkdownViewerAdapter::~MarkdownViewerAdapter() {
+#ifdef VTEXTEDIT_ENABLE_TYPST
   m_retiringTypst = true;
   m_typstActive.reset();
   m_typstQueue.clear();
   m_typstIds.clear();
   // Facade destruction suppresses callbacks and releases native work without waiting.
   delete m_typstRenderer;
+#endif // VTEXTEDIT_ENABLE_TYPST
 }
 
 void MarkdownViewerAdapter::setProtectedView(bool p_protected) {
@@ -145,10 +151,13 @@ void MarkdownViewerAdapter::setProtectedView(bool p_protected) {
     return;
   }
   m_protectedView = p_protected;
+#ifdef VTEXTEDIT_ENABLE_TYPST
   // A protection transition never carries formulas or authorization into another mode.
   revokeProtectedTypst();
+#endif // VTEXTEDIT_ENABLE_TYPST
 }
 
+#ifdef VTEXTEDIT_ENABLE_TYPST
 void MarkdownViewerAdapter::setProtectedTypstAuthorization(std::function<bool()> p_authorize) {
   if (!m_protectedView || m_retiringTypst) {
     return;
@@ -173,6 +182,8 @@ void MarkdownViewerAdapter::revokeProtectedTypst() {
 bool MarkdownViewerAdapter::isTypstAuthorized() const {
   return !m_protectedView || (m_protectedTypstAuthorization && m_protectedTypstAuthorization());
 }
+
+#endif // VTEXTEDIT_ENABLE_TYPST
 
 QString MarkdownViewerAdapter::protectedImageUrl(const QString &p_url) {
   if (!m_protectedView || p_url.size() > 32 * 1024 * 1024 ||
@@ -240,7 +251,9 @@ void MarkdownViewerAdapter::setRenderedHtml(QString p_generation, const QString 
   m_hasPendingHtml = true;
   const auto resetGeneration = getResetGeneration();
   const QPointer<MarkdownViewerAdapter> guard(this);
+#ifdef VTEXTEDIT_ENABLE_TYPST
   retireTypst(QString(), true);
+#endif // VTEXTEDIT_ENABLE_TYPST
   if (!guard || guard->getResetGeneration() != resetGeneration || p_generation != m_generation) {
     return;
   }
@@ -538,8 +551,10 @@ void MarkdownViewerAdapter::setSavedContent(const QString &p_generation,
 }
 
 void MarkdownViewerAdapter::reset() {
+#ifdef VTEXTEDIT_ENABLE_TYPST
   // Block admission through all cancellation signals, including nested resets/unprotects.
   const bool retiring = std::exchange(m_retiringTypst, true);
+#endif // VTEXTEDIT_ENABLE_TYPST
   const bool cancelContent = std::exchange(m_contentRequested, false);
   m_generation.clear();
   m_finishedGeneration.clear();
@@ -565,10 +580,12 @@ void MarkdownViewerAdapter::reset() {
   if (!guard) {
     return;
   }
+#ifdef VTEXTEDIT_ENABLE_TYPST
   retireTypst();
   if (guard) {
     m_retiringTypst = retiring;
   }
+#endif // VTEXTEDIT_ENABLE_TYPST
 }
 
 void MarkdownViewerAdapter::renderGraph(quint64 p_id, quint64 p_index, const QString &p_format,
@@ -619,6 +636,7 @@ void MarkdownViewerAdapter::renderGraph(quint64 p_id, quint64 p_index, const QSt
   }
 }
 
+#ifdef VTEXTEDIT_ENABLE_TYPST
 void MarkdownViewerAdapter::renderTypstMath(const QString &p_id, const QString &p_scope,
                                             const QString &p_source, bool p_display,
                                             const QString &p_foreground) {
@@ -806,6 +824,7 @@ void MarkdownViewerAdapter::retireTypst(const QString &p_scope, bool p_readersOn
   startNextTypst();
 }
 
+#endif // VTEXTEDIT_ENABLE_TYPST
 void MarkdownViewerAdapter::onPdfRenderReady() { emit pdfRenderReady(); }
 
 void MarkdownViewerAdapter::toggleTaskListItem(const QString &p_generation, int p_lineNumber,

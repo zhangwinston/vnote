@@ -360,6 +360,9 @@ jobs:
           "validated=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Cache Typst compiler dependencies
+        # Typst is Qt 6-only (VTEXTEDIT_ENABLE_TYPST is forced OFF on the
+        # Qt 5.15 / Windows 7 leg), so the Rust toolchain is not needed there.
+        if: ${{ matrix.config.qt_major == 6 }}
         uses: actions/cache@v4
         with:
           path: |
@@ -369,6 +372,7 @@ jobs:
           key: ${{runner.os}}-typst-Rust-1.99.0-${{hashFiles('libs/vtextedit/tools/typst-backend/Cargo.lock')}}
 
       - name: Install pinned Typst build tools
+        if: ${{ matrix.config.qt_major == 6 }}
         shell: cmd
         env:
           VS_CMD: ${{ matrix.config.vs_cmd }}

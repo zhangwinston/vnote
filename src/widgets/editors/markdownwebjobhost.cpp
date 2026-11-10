@@ -193,6 +193,7 @@ void MarkdownWebJobHost::ensureProtectedSession() {
   auto *channel = new QWebChannel(page);
   auto *adapter = new MarkdownViewerAdapter(m_services, page);
   adapter->setProtectedView(true);
+#ifdef VTEXTEDIT_ENABLE_TYPST
   auto *profile = runtime.profile.profile;
   adapter->setProtectedTypstAuthorization(runtime.profile.isAuthorized);
   connect(profiles, &WebEngineProfileService::protectedProfileRevoked, adapter,
@@ -202,6 +203,7 @@ void MarkdownWebJobHost::ensureProtectedSession() {
           });
   connect(profile, &QObject::destroyed, adapter, &MarkdownViewerAdapter::revokeProtectedTypst);
   connect(profiles, &QObject::destroyed, adapter, &MarkdownViewerAdapter::revokeProtectedTypst);
+#endif // VTEXTEDIT_ENABLE_TYPST
   channel->registerObject(QStringLiteral("vxAdapter"), adapter);
   page->setWebChannel(channel);
   runtime.session = new WebViewJobSession(page, channel, page);

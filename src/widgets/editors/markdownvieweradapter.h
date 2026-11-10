@@ -16,9 +16,11 @@
 
 #include <core/global.h>
 
+#ifdef VTEXTEDIT_ENABLE_TYPST
 namespace vte {
 class TypstFragmentRenderer;
 }
+#endif // VTEXTEDIT_ENABLE_TYPST
 
 namespace vnotex {
 class ServiceLocator;
@@ -66,10 +68,12 @@ public:
 
   void setProtectedView(bool p_protected);
 
+#ifdef VTEXTEDIT_ENABLE_TYPST
   // Native-only capability binding. The GUI-thread predicate must not emit signals
   // or process events. Missing/revoked authorization denies protected native Typst rendering.
   void setProtectedTypstAuthorization(std::function<bool()> p_authorize);
   void revokeProtectedTypst();
+#endif // VTEXTEDIT_ENABLE_TYPST
 
   // Native render token; independent of buffer and editor revisions.
   void setRenderedHtml(QString p_generation, const QString &p_html, int p_lineNumber = -1);
@@ -152,6 +156,7 @@ public slots:
   void renderGraph(quint64 p_id, quint64 p_index, const QString &p_format, const QString &p_lang,
                    const QString &p_text, int p_imageIndex);
 
+#ifdef VTEXTEDIT_ENABLE_TYPST
   void renderTypstMath(const QString &p_id, const QString &p_scope, const QString &p_source,
                        bool p_display, const QString &p_foreground);
 
@@ -159,6 +164,7 @@ public slots:
                         const QString &p_foreground);
 
   void cancelTypst(const QString &p_scope);
+#endif // VTEXTEDIT_ENABLE_TYPST
 
   // Web side requests to toggle the task list item at 0-based source line
   // @p_lineNumber to @p_checked.
@@ -192,7 +198,9 @@ signals:
   void graphRenderDataReady(quint64 p_id, quint64 p_index, const QString &p_format,
                             const QString &p_data, bool p_success);
 
+#ifdef VTEXTEDIT_ENABLE_TYPST
   void typstReady(const QString &p_id, const QJsonObject &p_result);
+#endif // VTEXTEDIT_ENABLE_TYPST
 
   // The toggle of the task list item at 0-based source line @p_lineNumber was
   // rejected; the web side should restore the checkbox state.
@@ -229,6 +237,7 @@ signals:
   void linkRequested(const QString &p_url);
 
 private:
+#ifdef VTEXTEDIT_ENABLE_TYPST
   struct TypstRequest {
     QString m_id;
     QString m_scope;
@@ -247,6 +256,7 @@ private:
 
   // Empty scope retires all work, or only reader work when p_readersOnly is true.
   void retireTypst(const QString &p_scope = QString(), bool p_readersOnly = false);
+#endif // VTEXTEDIT_ENABLE_TYPST
 
   void dispatchHtml(QString p_generation);
 
@@ -255,7 +265,9 @@ private:
   void scrollToAnchor(const QString &p_anchor);
 
   bool m_protectedView = false;
+#ifdef VTEXTEDIT_ENABLE_TYPST
   std::function<bool()> m_protectedTypstAuthorization;
+#endif // VTEXTEDIT_ENABLE_TYPST
 
   // Never reset the sequence on page reload; delayed web replies must stay obsolete.
   quint64 m_imageViewSequence = 0;
@@ -289,6 +301,7 @@ private:
   // Targets supported by cross copy. Set by web.
   QStringList m_crossCopyTargets;
 
+#ifdef VTEXTEDIT_ENABLE_TYPST
   vte::TypstFragmentRenderer *m_typstRenderer = nullptr;
   std::optional<TypstRequest> m_typstActive;
   QList<TypstRequest> m_typstQueue;
@@ -298,6 +311,7 @@ private:
   // A cancelled owner can be gone while the facade still owes its terminal callback.
   bool m_typstInFlight = false;
   bool m_retiringTypst = false;
+#endif // VTEXTEDIT_ENABLE_TYPST
 
   ServiceLocator *m_services = nullptr; // Non-owning; set by ServiceLocator-aware constructor
 };

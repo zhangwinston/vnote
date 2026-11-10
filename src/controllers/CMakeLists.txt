@@ -23,9 +23,7 @@ target_sources(vnote PRIVATE
     textviewwindowcontroller.cpp textviewwindowcontroller.h
     todoviewwindowcontroller.cpp todoviewwindowcontroller.h
     todostickercontroller.cpp todostickercontroller.h
-    typstviewwindowcontroller.cpp typstviewwindowcontroller.h
     commentcontroller.cpp commentcontroller.h
-    pdfviewwindowcontroller.cpp pdfviewwindowcontroller.h
     mindmapviewwindowcontroller.cpp mindmapviewwindowcontroller.h
     markdowneditorcontroller.cpp markdowneditorcontroller.h
     markdownwebjobcontroller.cpp markdownwebjobcontroller.h
@@ -53,4 +51,18 @@ endif()
 target_include_directories(vnote PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# Typst and the pdf.js viewer are Qt 6-only features of this fork's Qt 5.15 /
+# Windows 7 variant. Without their controllers, ViewAreaController falls back
+# to the system default application for .typst and .pdf files.
+if(VTEXTEDIT_ENABLE_TYPST)
+    target_sources(vnote PRIVATE
+        typstviewwindowcontroller.cpp typstviewwindowcontroller.h
+    )
+endif()
+if(QT_DEFAULT_MAJOR_VERSION GREATER 5)
+    target_sources(vnote PRIVATE
+        pdfviewwindowcontroller.cpp pdfviewwindowcontroller.h
+    )
+endif()
 

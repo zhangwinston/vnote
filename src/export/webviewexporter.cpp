@@ -221,11 +221,16 @@ QString generateMarkdownViewerTemplate(ConfigMgr2 &p_configMgr,
   // Match the reader's mandatory job bootstrap: the channel handshake needs the bridge
   // before configured scripts run, and providers need the configured workers afterward.
   const auto placeholder = QStringLiteral("<!-- VX_SCRIPTS_PLACEHOLDER -->");
+#ifdef VTEXTEDIT_ENABLE_TYPST
+  const QString typstScriptTag =
+      fillScriptTag(resolveConfigFile(p_configMgr, QStringLiteral("web/js/typst.js")));
+#else
+  const QString typstScriptTag;
+#endif
   htmlTemplate.replace(
       placeholder,
       fillScriptTag(resolveConfigFile(p_configMgr, QStringLiteral("web/js/webviewjobs.js"))) +
-          placeholder +
-          fillScriptTag(resolveConfigFile(p_configMgr, QStringLiteral("web/js/typst.js"))) +
+          placeholder + typstScriptTag +
           fillScriptTag(
               resolveConfigFile(p_configMgr, QStringLiteral("web/js/markdownwebjobs.js"))));
   fillResources(htmlTemplate, viewerResource, p_configMgr);

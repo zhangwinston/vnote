@@ -92,9 +92,14 @@ void PreviewHelper::MathBlockPreviewData::zoomInplacePreview(qreal p_zoomRatio) 
 
 PreviewHelper::PreviewHelper(vte::VMarkdownEditor *p_editor, QObject *p_parent)
     : QObject(p_parent),
+#ifdef VTEXTEDIT_ENABLE_TYPST
       m_inplacePreviewSources(SourceFlag::FlowChart | SourceFlag::Mermaid | SourceFlag::WaveDrom |
                               SourceFlag::PlantUml | SourceFlag::Graphviz | SourceFlag::Math |
                               SourceFlag::Typst),
+#else
+      m_inplacePreviewSources(SourceFlag::FlowChart | SourceFlag::Mermaid | SourceFlag::WaveDrom |
+                              SourceFlag::PlantUml | SourceFlag::Graphviz | SourceFlag::Math),
+#endif
       m_codeBlockCache(100, nullptr), m_mathBlockCache(100, nullptr) {
   setMarkdownEditor(p_editor);
 
@@ -511,8 +516,11 @@ void PreviewHelper::inplacePreviewCodeBlock(int p_blockPreviewIdx) {
       checkPreviewSourceLang(SourceFlag::Mermaid, blockData.m_lang) ||
       checkPreviewSourceLang(SourceFlag::PlantUml, blockData.m_lang) ||
       (checkPreviewSourceLang(SourceFlag::Graphviz, blockData.m_lang) && m_webGraphvizEnabled) ||
-      checkPreviewSourceLang(SourceFlag::Math, blockData.m_lang) ||
-      checkPreviewSourceLang(SourceFlag::Typst, blockData.m_lang)) {
+      checkPreviewSourceLang(SourceFlag::Math, blockData.m_lang)
+#ifdef VTEXTEDIT_ENABLE_TYPST
+      || checkPreviewSourceLang(SourceFlag::Typst, blockData.m_lang)
+#endif
+      ) {
     emit graphPreviewRequested(p_blockPreviewIdx, m_codeBlockTimeStamp, blockData.m_lang,
                                vte::TextUtils::removeCodeBlockFence(blockData.m_text),
                                m_codeBlockRequestZoomRatio);

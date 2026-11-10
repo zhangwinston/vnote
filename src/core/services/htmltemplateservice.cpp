@@ -330,7 +330,14 @@ void HtmlTemplateService::updateMarkdownViewerTemplate(const MarkdownEditorConfi
     opts.m_plantUmlFormat = p_config.getPlantUmlFormat();
     opts.m_plantUmlWebService = p_config.getPlantUmlWebService();
     opts.m_webGraphviz = p_config.getWebGraphviz();
-    opts.m_mathRenderer = p_config.getMathRenderer();
+    const QString mathRenderer = p_config.getMathRenderer();
+#ifdef VTEXTEDIT_ENABLE_TYPST
+    opts.m_mathRenderer = mathRenderer;
+#else
+    // No typst.js / native Typst bridge in the Qt 5 variant; degrade to KaTeX.
+    opts.m_mathRenderer =
+        mathRenderer == QStringLiteral("typst") ? QStringLiteral("katex") : mathRenderer;
+#endif
     opts.m_mathJaxScript = p_config.getMathJaxScript();
     opts.m_constrainImageWidthEnabled = p_config.getConstrainImageWidthEnabled();
     opts.m_imageAlignCenterEnabled = p_config.getImageAlignCenterEnabled();
@@ -346,7 +353,10 @@ void HtmlTemplateService::updateMarkdownViewerTemplate(const MarkdownEditorConfi
   // Required viewer features, after configured dependencies even for older resource lists.
   const auto scriptPlaceholder = QStringLiteral("<!-- VX_SCRIPTS_PLACEHOLDER -->");
   const auto jobBridge = fillScriptTag(resolveConfigFile(QStringLiteral("web/js/webviewjobs.js")));
-  QString scripts = fillScriptTag(resolveConfigFile(QStringLiteral("web/js/typst.js")));
+  QString scripts;
+#ifdef VTEXTEDIT_ENABLE_TYPST
+  scripts += fillScriptTag(resolveConfigFile(QStringLiteral("web/js/typst.js")));
+#endif
   scripts += fillScriptTag(resolveConfigFile(QStringLiteral("web/js/markdownwebjobs.js")));
   scripts += fillScriptTag(resolveConfigFile(QStringLiteral("web/js/sectionnumber.js")));
   for (const auto &path : c_presentationScripts) {
@@ -481,7 +491,9 @@ QString HtmlTemplateService::protectedMarkdownViewerTemplate(
                          QStringLiteral("web/js/turndown.js"),
                          QStringLiteral("web/js/mark.js/mark.min.js"),
                          QStringLiteral("web/js/markjs.js"),
+#ifdef VTEXTEDIT_ENABLE_TYPST
                          QStringLiteral("web/js/typst.js"),
+#endif
                          QStringLiteral("web/js/markdownwebjobs.js")};
   scripts += c_presentationScripts;
   const QStringList lazyScripts = {QStringLiteral("web/js/prism/prism.min.js"),
@@ -583,8 +595,12 @@ QString HtmlTemplateService::protectedMarkdownViewerTemplate(
   }
 
   MarkdownWebGlobalOptions options;
+#ifdef VTEXTEDIT_ENABLE_TYPST
   options.m_mathRenderer =
       p_mathRenderer == QStringLiteral("typst") ? QStringLiteral("typst") : QStringLiteral("katex");
+#else
+  options.m_mathRenderer = QStringLiteral("katex");
+#endif
   options.m_webPlantUml = false;
   options.m_webGraphviz = true;
   options.m_protectFromXss = true;
