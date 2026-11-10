@@ -1,7 +1,9 @@
 #include "exportrendererfactory.h"
 
 #include "mindmapexporter.h"
+#ifdef VTEXTEDIT_ENABLE_TYPST
 #include "typstexporter.h"
+#endif
 #include "webviewexporter.h"
 
 using namespace vnotex;
@@ -33,6 +35,7 @@ void vnotex::registerBuiltinExportRenderers(ExportRendererFactory &p_factory) {
        ExportOptionGroup::PdfLayout | ExportOptionGroup::Wkhtmltopdf},
       {ExportFormat::Custom, {}, {}},
   }};
+#ifdef VTEXTEDIT_ENABLE_TYPST
   const ExportCapabilities typstCapabilities{{
       {ExportFormat::Typst, QStringLiteral("typst"), {}},
       {ExportFormat::HTML, QStringLiteral("html"), {}},
@@ -43,6 +46,7 @@ void vnotex::registerBuiltinExportRenderers(ExportRendererFactory &p_factory) {
                              [](ServiceLocator &p_services, QWidget *p_host, QObject *p_parent) {
                                return new TypstExporter(p_services, p_host, p_parent);
                              });
+#endif
   p_factory.registerRenderer(QStringLiteral("Markdown"), markdownCapabilities, webRenderer);
   p_factory.registerRenderer(QStringLiteral("Text"), textCapabilities, webRenderer);
   p_factory.registerRenderer(QStringLiteral("Others"), textCapabilities, webRenderer);

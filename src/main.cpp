@@ -70,7 +70,9 @@
 #include <utils/autostartutils.h>
 #include <utils/docsutils.h>
 #include <vtextedit/spellchecker.h>
+#ifdef VTEXTEDIT_ENABLE_TYPST
 #include <vtextedit/typstruntime.h>
+#endif
 #include <vtextedit/vtexteditor.h>
 #include <vxcore/vxcore.h>
 #include <widgets/editors/markdownwebjobhost.h>
@@ -776,8 +778,10 @@ int main(int argc, char *argv[]) {
     qInfo() << "ThemeService registered";
 
     // Outlives every editor and accepted-close image scan; native calls drain on teardown.
+#ifdef VTEXTEDIT_ENABLE_TYPST
     vte::TypstRuntime typstRuntime;
     serviceLocator.registerService<vte::TypstRuntime>(&typstRuntime);
+#endif
 
     // Shared QtWebEngine profile with a disk HTTP cache. Declared here (before MainWindow2) so
     // that stack destruction tears the window - and every page using this profile - down first.

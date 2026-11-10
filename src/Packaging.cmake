@@ -20,22 +20,26 @@ find_program(MACDEPLOYQT_EXECUTABLE macdeployqt HINTS "${QT_BIN_DIR}")
 find_program(MACDEPLOYQTFIX_EXECUTABLE macdeployqtfix.py HINTS "${QT_BIN_DIR}")
 find_package(Python)
 
-get_filename_component(VX_TYPST_QT_PREFIX "${QT_BIN_DIR}/.." ABSOLUTE)
-set(VX_TYPST_NOTICES_DIR "${CMAKE_CURRENT_BINARY_DIR}/typst-notices")
 # Attribution is a deployment prerequisite, not a configure or application-startup operation.
-add_custom_target(prepare_typst_notices
-    COMMAND "${Python_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/package/prepare-typst-notices.py"
-        --manifest "${PROJECT_SOURCE_DIR}/libs/vtextedit/tools/typst-backend/Cargo.toml"
-        --qt-prefix "${VX_TYPST_QT_PREFIX}"
-        --qt-version "${QT_VERSION}"
-        --output-dir "${VX_TYPST_NOTICES_DIR}"
-    BYPRODUCTS "${VX_TYPST_NOTICES_DIR}/LICENSE.typst-dependencies"
-               "${VX_TYPST_NOTICES_DIR}/LICENSE.vtextedit-typst"
-               "${VX_TYPST_NOTICES_DIR}/qtpdf-${QT_VERSION}.spdx.json"
-               "${VX_TYPST_NOTICES_DIR}/qtwebengine-chromium-pdf-${QT_VERSION}.spdx.json"
-    COMMENT "Preparing Typst and Qt PDF runtime attribution"
-    VERBATIM
-)
+# The native Typst backend (and its Qt PDF attribution) only exists when the
+# Typst editor is built; the Qt 5.15 / Windows 7 variant ships neither.
+if(VTEXTEDIT_ENABLE_TYPST)
+    get_filename_component(VX_TYPST_QT_PREFIX "${QT_BIN_DIR}/.." ABSOLUTE)
+    set(VX_TYPST_NOTICES_DIR "${CMAKE_CURRENT_BINARY_DIR}/typst-notices")
+    add_custom_target(prepare_typst_notices
+        COMMAND "${Python_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/package/prepare-typst-notices.py"
+            --manifest "${PROJECT_SOURCE_DIR}/libs/vtextedit/tools/typst-backend/Cargo.toml"
+            --qt-prefix "${VX_TYPST_QT_PREFIX}"
+            --qt-version "${QT_VERSION}"
+            --output-dir "${VX_TYPST_NOTICES_DIR}"
+        BYPRODUCTS "${VX_TYPST_NOTICES_DIR}/LICENSE.typst-dependencies"
+                   "${VX_TYPST_NOTICES_DIR}/LICENSE.vtextedit-typst"
+                   "${VX_TYPST_NOTICES_DIR}/qtpdf-${QT_VERSION}.spdx.json"
+                   "${VX_TYPST_NOTICES_DIR}/qtwebengine-chromium-pdf-${QT_VERSION}.spdx.json"
+        COMMENT "Preparing Typst and Qt PDF runtime attribution"
+        VERBATIM
+    )
+endif()
 
 function(windeployqt target)
     # Bundle Library Files
@@ -87,7 +91,10 @@ function(windeployqt target)
         DEPENDS vnote lrelease
     )
 
-    add_dependencies(deploy prepare_win_updater vnote_typst_runtime prepare_typst_notices)
+    add_dependencies(deploy prepare_win_updater)
+    if(VTEXTEDIT_ENABLE_TYPST)
+        add_dependencies(deploy vnote_typst_runtime prepare_typst_notices)
+    endif()
     add_dependencies(pack deploy)
 
     install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/winqt/" DESTINATION "${CMAKE_INSTALL_BINDIR}" OPTIONAL)
@@ -97,8 +104,10 @@ function(windeployqt target)
         "${UPDATER_OUTPUT_DIR}/LICENSE.minisign"
         DESTINATION "${CMAKE_INSTALL_BINDIR}/updater"
     )
-    install(DIRECTORY "${VX_TYPST_NOTICES_DIR}/"
-        DESTINATION "${CMAKE_INSTALL_BINDIR}/licenses/typst")
+    if(VTEXTEDIT_ENABLE_TYPST)
+        install(DIRECTORY "${VX_TYPST_NOTICES_DIR}/"
+            DESTINATION "${CMAKE_INSTALL_BINDIR}/licenses/typst")
+    endif()
 
     # Qt's own tools_openssl_x64 package (OpenSSL 1.1.1, installing to
     # Tools/OpenSSL/Win_x64/bin -- exactly what this globs for) has been DELISTED
@@ -307,7 +316,11 @@ add_custom_target(pack
                   COMMENT "Running CPACK. Please wait..."
                   DEPENDS vnote)
 # CPack installs the upstream CLI before Windows package pruning removes it.
-add_dependencies(pack lrelease cmark_exe vnote_typst_runtime prepare_typst_notices)
+set(VX_PACK_DEPS lrelease cmark_exe)
+if(VTEXTEDIT_ENABLE_TYPST)
+    list(APPEND VX_PACK_DEPS vnote_typst_runtime prepare_typst_notices)
+endif()
+add_dependencies(pack ${VX_PACK_DEPS})
 
 set(CPACK_GENERATOR)
 

@@ -7,7 +7,9 @@
 #include <widgets/markdownviewwindow2.h>
 #include <widgets/mindmapviewwindow2.h>
 #include <widgets/textviewwindow2.h>
+#ifdef VTEXTEDIT_ENABLE_TYPST
 #include <widgets/typstviewwindow.h>
+#endif
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
 #include <widgets/pdfviewwindow2.h>
@@ -30,11 +32,13 @@ void ViewWindowFactory::registerBuiltInCreators() {
                      ViewWindowMode) -> ViewWindow2 * {
                     return new TextViewWindow2(p_services, p_buffer, p_parent);
                   });
+#ifdef VTEXTEDIT_ENABLE_TYPST
   registerCreator("Typst",
                   [](ServiceLocator &p_services, const Buffer2 &p_buffer, QWidget *p_parent,
                      ViewWindowMode p_mode) -> ViewWindow2 * {
                     return new TypstViewWindow(p_services, p_buffer, p_parent, p_mode);
                   });
+#endif
   registerCreator("Image",
                   [](ServiceLocator &p_services, const Buffer2 &p_buffer, QWidget *p_parent,
                      ViewWindowMode) -> ViewWindow2 * {

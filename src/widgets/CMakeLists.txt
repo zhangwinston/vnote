@@ -77,8 +77,6 @@ target_sources(vnote PRIVATE
     editors/markdownvieweradapter.cpp editors/markdownvieweradapter.h
     editors/markdownwebjobhost.cpp editors/markdownwebjobhost.h
     editors/mindmapeditor.cpp editors/mindmapeditor.h
-    editors/pdfviewer.cpp editors/pdfviewer.h
-    editors/pdfvieweradapter.cpp editors/pdfvieweradapter.h
     editors/plantumlhelper.cpp editors/plantumlhelper.h
     editors/graphpreviewdata.cpp editors/graphpreviewdata.h
     editors/previewdispatchplanner.cpp editors/previewdispatchplanner.h
@@ -125,12 +123,8 @@ target_sources(vnote PRIVATE
     commentprovider.cpp commentprovider.h
     outlineprovider.cpp outlineprovider.h
     outlineviewer.cpp outlineviewer.h
-    pdfannotationtoolbar.cpp pdfannotationtoolbar.h
-    pdftooloptionsrouter.cpp pdftooloptionsrouter.h
     contentfullscreenhost.cpp contentfullscreenhost.h
-    pdfviewertoolbar.cpp pdfviewertoolbar.h
     presentationtoolbareffect.cpp presentationtoolbareffect.h
-    pdfviewwindow2.cpp pdfviewwindow2.h
     propertydefs.cpp propertydefs.h
     quickselector.cpp quickselector.h
     searchpanel2.cpp searchpanel2.h
@@ -147,7 +141,6 @@ target_sources(vnote PRIVATE
     tagviewer2.cpp tagviewer2.h
     textviewwindow2.cpp textviewwindow2.h
     textviewwindowhelper.h
-    typstviewwindow.cpp typstviewwindow.h
     titlebar.cpp titlebar.h
     titlebarcontainer.cpp titlebarcontainer.h
     titletoolbar2.cpp titletoolbar2.h
@@ -167,3 +160,22 @@ target_sources(vnote PRIVATE
     wordcountpopup2.cpp wordcountpopup2.h
     zoomtoolbar.cpp zoomtoolbar.h
 )
+
+# The pdf.js viewer widgets (Qt >= 6.9 WebEngine, QPdfDocument) and the native
+# Typst view window are excluded from the Qt 5.15 / Windows 7 variant; those
+# file types then open through the system default application.
+if(QT_DEFAULT_MAJOR_VERSION GREATER 5)
+    target_sources(vnote PRIVATE
+        editors/pdfviewer.cpp editors/pdfviewer.h
+        editors/pdfvieweradapter.cpp editors/pdfvieweradapter.h
+        pdfannotationtoolbar.cpp pdfannotationtoolbar.h
+        pdftooloptionsrouter.cpp pdftooloptionsrouter.h
+        pdfviewertoolbar.cpp pdfviewertoolbar.h
+        pdfviewwindow2.cpp pdfviewwindow2.h
+    )
+endif()
+if(VTEXTEDIT_ENABLE_TYPST)
+    target_sources(vnote PRIVATE
+        typstviewwindow.cpp typstviewwindow.h
+    )
+endif()

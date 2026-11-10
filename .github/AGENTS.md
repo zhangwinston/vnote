@@ -263,6 +263,12 @@ VNote requires the pinned Rust 1.99.0/Typst 0.15.1 shared library and Qt PDF. Em
 even without relinking VNote. Both `pack` and direct `deploy` depend on this target and
 `prepare_typst_notices`, retaining the existing cmark/lrelease prerequisites.
 
+> Qt 5.15 / Windows 7 exception: `libs/CMakeLists.txt` forces `VTEXTEDIT_ENABLE_TYPST=OFF`
+> on Qt 5, so the Typst sources, `vnote_typst_runtime`, `prepare_typst_notices` and their
+> packaging dependencies do not exist in that variant. The ci-win Qt 5 leg installs no Rust
+> toolchain, and `.typst` / `.pdf` files open through the system default application. The
+> pdf.js asset tree is also filtered out of that variant's `vnote_extra.rcc`.
+
 Provision `cargo +1.99.0 install cargo-about --locked --version 0.9.2 --features cli` and
 fetch the backend's complete locked dependency graph before offline deployment. The `cli`
 feature is required: installing this release without it produces no executable. Keep
