@@ -19,12 +19,21 @@ struct HeadingMarkerReplacement {
 QRegularExpressionMatch matchAtxHeading(QStringView p_source) {
   static const QRegularExpression pattern(
       QStringLiteral("\\A( {0,3})(#{1,6})(?=[\\t ]|$)([\\t ]*)"));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
   return pattern.matchView(p_source);
+#else
+  // QRegularExpression::matchView is Qt 6.5+.
+  return pattern.match(p_source.toString());
+#endif
 }
 
 QRegularExpressionMatch matchSetextUnderline(QStringView p_source) {
   static const QRegularExpression pattern(QStringLiteral("\\A( {0,3})(=+|-+)([\\t ]*)\\z"));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
   return pattern.matchView(p_source);
+#else
+  return pattern.match(p_source.toString());
+#endif
 }
 
 // cmark can finalize a Setext span on the following blank/prose line. Locate its

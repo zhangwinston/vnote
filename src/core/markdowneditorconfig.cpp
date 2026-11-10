@@ -57,6 +57,7 @@ void migrateDocumentResources(WebResource &p_resource) {
 
 #define READSTR(key) readString(p_jobj, (key))
 #define READBOOL(key) readBool(p_jobj, (key))
+#define READREAL(key) readReal(p_jobj, (key))
 #define READINT(key) readInt(p_jobj, (key))
 
 MarkdownEditorConfig::MarkdownEditorConfig(

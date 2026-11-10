@@ -13,6 +13,7 @@
 #include <core/services/buffer2.h>
 #include <core/services/bufferservice.h>
 #include <core/services/hookmanager.h>
+#include <utils/qtcompat.h>
 
 using namespace vnotex;
 
@@ -216,17 +217,17 @@ void MarkdownRenderController::startPreview() {
   auto *watcher = new QFutureWatcher<NativeResult>();
   const QPointer<MarkdownRenderController> guard(this);
   // The watcher owns its cleanup, not the view: receiver destruction cannot orphan inputs.
-  connect(
+  connectSingleShot(
       watcher, &QFutureWatcher<NativeResult>::finished, watcher,
       [watcher, guard]() {
-        // takeResult releases the stored payload. Replacing the future with a default
-        // finished future would enqueue another completion before deferred deletion.
-        auto output = watcher->future().takeResult();
+        // futureTakeResult releases the stored payload on Qt 6. Replacing the future
+        // with a default finished future would enqueue another completion before
+        // deferred deletion.
+        auto output = futureTakeResult(watcher->future());
         watcher->deleteLater();
         if (guard)
           guard->finishPreview(std::move(output.result), std::move(output.lease));
-      },
-      Qt::SingleShotConnection);
+      });
   watcher->setFuture(Input::run(std::move(m_previewActive->input), m_previewActive->cancelled,
                                 std::move(m_previewActive->lease), true));
 }
@@ -242,15 +243,14 @@ void MarkdownRenderController::startHeading() {
   m_headingsPending.pop_front();
   auto *watcher = new QFutureWatcher<NativeResult>();
   const QPointer<MarkdownRenderController> guard(this);
-  connect(
+  connectSingleShot(
       watcher, &QFutureWatcher<NativeResult>::finished, watcher,
       [watcher, guard]() {
-        auto output = watcher->future().takeResult();
+        auto output = futureTakeResult(watcher->future());
         watcher->deleteLater();
         if (guard)
           guard->finishHeading(std::move(output.result), std::move(output.lease));
-      },
-      Qt::SingleShotConnection);
+      });
   watcher->setFuture(Input::run(std::move(m_headingActive->input), m_headingActive->cancelled,
                                 std::move(m_headingActive->lease), false));
 }

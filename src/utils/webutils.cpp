@@ -5,6 +5,7 @@
 #include <QImageReader>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QUrl>
 
 #include "fileutils2.h"

@@ -1,5 +1,7 @@
 #include "newsnippetdialog2.h"
 
+#include <QDebug>
+
 #include <core/servicelocator.h>
 #include <core/services/snippetcoreservice.h>
 #include <controllers/snippetcontroller.h>

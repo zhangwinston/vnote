@@ -1,5 +1,6 @@
 #include "snippetcoreservice.h"
 
+#include <QDebug>
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QRegularExpression>

@@ -1,6 +1,7 @@
 #include "snippetpanel2.h"
 
 #include <QDesktopServices>
+#include <QDebug>
 #include <QListView>
 #include <QMenu>
 #include <QMessageBox>

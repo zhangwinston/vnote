@@ -9,6 +9,7 @@
 #include <QMouseEvent>
 #include <QVBoxLayout>
 
+#include <utils/qtcompat.h>
 #include <widgets/propertydefs.h>
 
 using namespace vnotex;
@@ -34,7 +35,7 @@ public:
 
 protected:
   void mouseReleaseEvent(QMouseEvent *p_event) override {
-    if (p_event->button() == Qt::LeftButton && rect().contains(p_event->position().toPoint()) &&
+    if (p_event->button() == Qt::LeftButton && rect().contains(eventPosition(*p_event)) &&
         buddy() && buddy()->isEnabled()) {
       buddy()->setFocus(Qt::MouseFocusReason);
       p_event->accept();
