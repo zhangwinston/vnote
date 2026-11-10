@@ -34,6 +34,7 @@
 #include <core/services/noteoperationservice.h>
 #include <core/services/searchservice.h>
 #include <core/services/syncworkqueuemanager.h>
+#include <utils/qtcompat.h>
 #include <vxcore/notebook_json_keys.h>
 
 using namespace vnotex;
@@ -201,7 +202,7 @@ bool snapshotPathAvailable(const QString &p_path, const QString &p_root) {
       relative == QLatin1String("..") || relative.startsWith(QLatin1String("../")))
     return false;
   for (QFileInfo part = file;; part = QFileInfo(part.absolutePath())) {
-    if (part.isSymbolicLink() || part.isJunction())
+    if (fileInfoIsSymbolicLink(part) || fileInfoIsJunction(part))
       return false;
     if (part.isRoot())
       return true;
@@ -1868,7 +1869,7 @@ Buffer2 BufferService::openMemoryBuffer(MemoryBufferSource p_source,
       if (p_size > static_cast<size_t>(std::numeric_limits<qsizetype>::max()))
         return VXCORE_ERR_OUT_OF_MEMORY;
       return static_cast<MemoryBufferSource *>(p_user)->save(
-          QByteArrayView(static_cast<const char *>(p_data), static_cast<qsizetype>(p_size)));
+          QByteArrayViewCompat(static_cast<const char *>(p_data), static_cast<int>(p_size)));
     };
   }
   callbacks.destroy = [](void *p_user) { delete static_cast<MemoryBufferSource *>(p_user); };
@@ -2931,7 +2932,7 @@ bool BufferService::syncMemoryContent(const QString &p_bufferId, const QByteArra
   const auto old = BufferCoreService::peekContentRaw(p_bufferId, &error);
   if (error != VXCORE_OK)
     return false;
-  if (old == QByteArrayView(p_content))
+  if (old == QByteArrayViewCompat(p_content))
     return true;
   return BufferCoreService::setContentRaw(p_bufferId, p_content);
 }

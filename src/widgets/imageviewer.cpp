@@ -29,6 +29,7 @@
 #include <gui/services/themeservice.h>
 
 #include <gui/utils/iconutils.h>
+#include <utils/qtcompat.h>
 
 using namespace vnotex;
 
@@ -346,7 +347,7 @@ bool ImageViewer::eventFilter(QObject *p_obj, QEvent *p_event) {
         if (p_obj == m_view->viewport() && wheel->modifiers() == Qt::NoModifier &&
             wheel->angleDelta().y() &&
             m_image->contains(
-                m_image->mapFromScene(m_view->mapToScene(wheel->position().toPoint())))) {
+                m_image->mapFromScene(m_view->mapToScene(eventPosition(*wheel))))) {
           zoom(wheel->angleDelta().y() > 0);
         }
         // In particular, Ctrl+wheel must not bubble up and zoom the mind map.

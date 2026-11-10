@@ -20,6 +20,7 @@
 #include <core/servicelocator.h>
 #include <gui/services/themeservice.h>
 #include <gui/utils/iconutils.h>
+#include <utils/qtcompat.h>
 
 using namespace vnotex;
 
@@ -68,7 +69,7 @@ protected:
     }
     const auto *mouse = static_cast<QMouseEvent *>(p_event);
     if (type == QEvent::MouseButtonDblClick) {
-      const auto position = mouse->globalPosition().toPoint();
+      const auto position = eventGlobalPosition(*mouse);
       const auto delta = position - m_position;
       const int distance = QApplication::styleHints()->mouseDoubleClickDistance();
       if (mouse->button() != Qt::LeftButton || !isSourceSurface(m_source, widget) ||
@@ -254,7 +255,7 @@ bool LinkPreviewOverlay::eventFilter(QObject *p_object, QEvent *p_event) {
     return false;
   }
   const auto *mouse = static_cast<QMouseEvent *>(p_event);
-  const auto position = mouse->globalPosition().toPoint();
+  const auto position = eventGlobalPosition(*mouse);
   if (type == QEvent::MouseMove) {
     if (!m_dismissalPressActive) {
       return false;

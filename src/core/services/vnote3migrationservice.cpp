@@ -3,12 +3,14 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QDateTime>
+#include <QDebug>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSet>
+#include <QVector>
 
 #include <core/services/notebookcoreservice.h>
 #include <core/services/tagcoreservice.h>

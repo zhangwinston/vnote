@@ -13,7 +13,10 @@ FetchContent_MakeAvailable(vnote_cpp_httplib)
 
 add_library(vnote_http STATIC httpserver.cpp httpserver.h httptypes.h)
 target_compile_features(vnote_http PUBLIC cxx_std_17)
-target_link_libraries(vnote_http PUBLIC Qt6::Core PRIVATE Threads::Threads)
+target_link_libraries(vnote_http
+  PUBLIC Qt${QT_DEFAULT_MAJOR_VERSION}::Core
+  PRIVATE Threads::Threads
+)
 if(WIN32)
   target_link_libraries(vnote_http PRIVATE ws2_32)
 endif()

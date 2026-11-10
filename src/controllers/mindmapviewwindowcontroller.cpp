@@ -413,7 +413,7 @@ void MindMapViewWindowController::requestEditNote(
   source.content = p_note.toUtf8();
   source.readOnly = false;
   const auto stage = std::make_shared<NoteSaveStage>();
-  source.save = [stage](QByteArrayView p_bytes) -> VxCoreError {
+  source.save = [stage](QByteArrayViewCompat p_bytes) -> VxCoreError {
     try {
       QMutexLocker lock(&stage->mutex);
       // The worker owns this copy, never the provider's borrowed view or GUI state.

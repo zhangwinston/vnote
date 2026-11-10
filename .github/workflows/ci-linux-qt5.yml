@@ -82,9 +82,13 @@ jobs:
           #   container ships neither). findutils: the minimal image has no
           #   `find`, which Fix Package uses for the fontconfig sweep and the
           #   composition gates.
+          # python3: the repinned syntax-highlighting submodule's CMake runs
+          #   find_package(Python 3 REQUIRED COMPONENTS Interpreter) to
+          #   generate the syntax catalog; the minimal container ships none.
           dnf install -y \
             make cmake pkgconf-pkg-config findutils \
             file desktop-file-utils \
+            python3 \
             gcc-toolset-12 gcc-toolset-12-gcc-c++ \
             qt5-qtbase-devel qt5-qtbase-private-devel qt5-linguist \
             qt5-qtwebengine-devel qt5-qtwebchannel-devel qt5-qtsvg-devel \

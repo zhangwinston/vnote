@@ -1,6 +1,7 @@
 #include "tagcoreservice.h"
 
 #include <QByteArrayView>
+#include <QDebug>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <memory>

@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFutureWatcher>
+#include <utils/qtcompat.h>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QPointer>
@@ -73,7 +74,7 @@ bool safePhysicalPath(const QString &p_root, const QString &p_path, QString *p_c
   constexpr auto sensitivity = Qt::CaseSensitive;
 #endif
   for (QFileInfo part = file;; part = QFileInfo(part.absolutePath())) {
-    if (part.isSymbolicLink() || part.isJunction())
+    if (fileInfoIsSymbolicLink(part) || fileInfoIsJunction(part))
       return false;
     if (QDir::cleanPath(part.absoluteFilePath()).compare(absoluteRoot, sensitivity) == 0)
       break;

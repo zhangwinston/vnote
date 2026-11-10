@@ -2,6 +2,8 @@
 
 #include <QCryptographicHash>
 
+#include <utils/qtcompat.h>
+
 using namespace vnotex;
 
 void Outline::clear() {
@@ -18,7 +20,7 @@ bool Outline::isEmpty() const { return m_headings.isEmpty(); }
 QByteArray Outline::navigationFingerprint() const {
   QCryptographicHash hash(QCryptographicHash::Sha256);
   const auto addScalar = [&hash](const auto &p_value) {
-    hash.addData(QByteArrayView(reinterpret_cast<const char *>(&p_value), sizeof(p_value)));
+    hash.addData(QByteArrayViewCompat(reinterpret_cast<const char *>(&p_value), sizeof(p_value)));
   };
   const quint64 count = m_headings.size();
   addScalar(count);
@@ -29,7 +31,7 @@ QByteArray Outline::navigationFingerprint() const {
     addScalar(level);
     addScalar(placeholder);
     addScalar(length);
-    hash.addData(QByteArrayView(reinterpret_cast<const char *>(heading.m_name.constData()),
+    hash.addData(QByteArrayViewCompat(reinterpret_cast<const char *>(heading.m_name.constData()),
                                 heading.m_name.size() * sizeof(QChar)));
   }
   return hash.result();

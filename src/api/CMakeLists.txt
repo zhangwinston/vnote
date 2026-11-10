@@ -4,5 +4,5 @@ add_library(vnote_api STATIC
 )
 target_compile_features(vnote_api PUBLIC cxx_std_17)
 target_include_directories(vnote_api PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(vnote_api PUBLIC vnote_http Qt6::Core)
+target_link_libraries(vnote_api PUBLIC vnote_http Qt${QT_DEFAULT_MAJOR_VERSION}::Core)
 set_target_properties(vnote_api PROPERTIES AUTOMOC ON)
