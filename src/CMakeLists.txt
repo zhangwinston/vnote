@@ -75,6 +75,13 @@ if(NOT QT_DEFAULT_MAJOR_VERSION GREATER 5)
     list(LENGTH VX_EXTRA_QRC_LINES VX_EXTRA_QRC_COUNT)
     string(REPLACE ";" "\n" VX_EXTRA_QRC_TEXT "${VX_EXTRA_QRC_LINES}")
     string(APPEND VX_EXTRA_QRC_TEXT "\n")
+    # rcc (and CMake's qrc dependency scan) resolve <file> paths relative to
+    # the qrc file itself. The generated qrc lives in the binary directory, so
+    # redirect every entry through a relative path back to data/extra/.
+    file(RELATIVE_PATH VX_EXTRA_QRC_REL "${CMAKE_CURRENT_BINARY_DIR}"
+        "${CMAKE_CURRENT_LIST_DIR}/data/extra")
+    string(REGEX REPLACE "(<file[^>]*>)" "\\1${VX_EXTRA_QRC_REL}/" VX_EXTRA_QRC_TEXT
+        "${VX_EXTRA_QRC_TEXT}")
     set(VX_EXTRA_QRC_FILE ${CMAKE_CURRENT_BINARY_DIR}/extra-qt5.qrc)
     file(WRITE "${VX_EXTRA_QRC_FILE}" "${VX_EXTRA_QRC_TEXT}")
     message(STATUS "Qt 5 build: pdf.js assets excluded from extra resources "
