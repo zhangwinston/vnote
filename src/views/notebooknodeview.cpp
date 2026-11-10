@@ -558,7 +558,11 @@ void NotebookNodeView::dragEnterEvent(QDragEnterEvent *p_event) {
 
   // Resolve the target notebook id the same way dropEvent/dragMoveEvent do so
   // the read-only gating (T3) can mirror their matrix on drag-enter.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   const QPoint dropPos = p_event->position().toPoint();
+#else
+  const QPoint dropPos = p_event->pos();
+#endif
   QModelIndex idx = indexAt(dropPos);
   NodeInfo targetInfo = nodeInfoFromIndex(idx);
   NodeIdentifier targetId = nodeIdFromIndex(idx);
@@ -609,7 +613,11 @@ void NotebookNodeView::dragEnterEvent(QDragEnterEvent *p_event) {
 }
 
 void NotebookNodeView::dragMoveEvent(QDragMoveEvent *p_event) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   const QPoint dropPos = p_event->position().toPoint();
+#else
+  const QPoint dropPos = p_event->pos();
+#endif
 
   QModelIndex idx = indexAt(dropPos);
   NodeInfo targetInfo = nodeInfoFromIndex(idx);
@@ -769,7 +777,11 @@ void NotebookNodeView::dragMoveEvent(QDragMoveEvent *p_event) {
 
 void NotebookNodeView::dropEvent(QDropEvent *p_event) {
   const QMimeData *mimeData = p_event->mimeData();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   const QPoint dropPos = p_event->position().toPoint();
+#else
+  const QPoint dropPos = p_event->pos();
+#endif
   QModelIndex idx = indexAt(dropPos);
   NodeIdentifier targetId = nodeIdFromIndex(idx);
   NodeInfo targetInfo = nodeInfoFromIndex(idx);

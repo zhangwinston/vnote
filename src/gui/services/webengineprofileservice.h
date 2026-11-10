@@ -53,7 +53,7 @@ public:
     std::function<bool()> isAuthorized;
   };
 
-  // Register before QApplication.
+  // Register before QApplication on Qt 5.15 and Qt 6.
   static void registerProtectedScheme();
   // Default owner is this service. Revoke first, destroy every page, then
   // destroy the profile. Each profile accepts one document generation only.

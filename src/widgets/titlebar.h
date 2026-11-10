@@ -1,10 +1,11 @@
 #ifndef TITLEBAR_H
 #define TITLEBAR_H
 
-#include <QEnterEvent>
 #include <QFrame>
 #include <QMenu>
 #include <QVector>
+
+#include <utils/qtcompat.h>
 
 class QToolButton;
 class QToolBar;
@@ -61,7 +62,7 @@ signals:
   void searchTextChanged(const QString &p_text);
 
 protected:
-  void enterEvent(QEnterEvent *p_event) Q_DECL_OVERRIDE;
+  void enterEvent(EnterEventCompat *p_event) Q_DECL_OVERRIDE;
 
   void leaveEvent(QEvent *p_event) Q_DECL_OVERRIDE;
 
