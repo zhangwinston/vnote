@@ -15,6 +15,7 @@ target_sources(vnote PRIVATE
     notebookpathhelpers.cpp notebookpathhelpers.h
     noteautorename.cpp noteautorename.h
     pathutils.cpp pathutils.h
+    qtcompat.h
     scrollpreservationpolicy.cpp scrollpreservationpolicy.h
     sectionnumberutils.h
     stringutils.cpp stringutils.h

@@ -5,6 +5,7 @@ param(
     [string]$Source,
     [string]$Version,
     [string]$CurrentVersion,
+    [string]$Variant,
     [string]$InstallDir,
     [int]$ParentProcessId,
     [string]$PipeName,
@@ -404,14 +405,53 @@ function Assert-VNoteRelease {
     if ($assets -isnot [array] -or $assets.Count -eq 0) { throw 'The release has no asset array.' }
 }
 
-function Get-VNoteReleaseAssets {
+function Get-VNoteRelease {
     param(
         [Parameter(Mandatory = $true)][ValidateSet('github', 'gitee')][string]$Source,
         [Parameter(Mandatory = $true)]$Version
     )
 
     Assert-VNoteVersion -Version $Version
-    $baseName = "VNote-$Version-win64"
+    if ([string]::IsNullOrWhiteSpace($script:VNoteStageRoot)) { throw 'The private attempt directory has not been initialized.' }
+    $apiUrl = $script:VNoteOrigins[$Source].ApiBaseUrl + 'v' + $Version
+    $apiPath = Join-Path $script:VNoteStageRoot ('release-' + [Guid]::NewGuid().ToString('N') + '.json')
+    $downloaded = $false
+    try {
+        Receive-VNoteFile -Url $apiUrl -Destination $apiPath -Source $Source -MaxBytes (16 * 1024 * 1024)
+        $downloaded = $true
+        $release = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($apiPath, [Text.Encoding]::UTF8)) -ErrorAction Stop
+        Assert-VNoteRelease -Release $release -Version $Version -Source $Source
+        # Validate source policy for the only records asset selection may consume.
+        $names = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+        foreach ($releaseVariant in @('win64', 'win64-windows7')) {
+            $baseName = "VNote-$Version-$releaseVariant"
+            $null = $names.Add("$baseName.zip")
+            $null = $names.Add("$baseName.manifest.json")
+            $null = $names.Add("$baseName.manifest.json.minisig")
+        }
+        foreach ($asset in $release.assets) {
+            $name = Get-VNoteProperty -Object $asset -Name 'name'
+            if ($name -isnot [string]) { throw 'A release asset name is not a string.' }
+            if ($names.Contains($name)) {
+                $null = Assert-VNoteUrl -Url (Get-VNoteProperty -Object $asset -Name 'browser_download_url') -Source $Source
+            }
+        }
+        return $release
+    }
+    finally {
+        if ($downloaded) { [IO.File]::Delete($apiPath) }
+    }
+}
+
+function Select-VNoteReleaseAssets {
+    param(
+        [Parameter(Mandatory = $true)]$Release,
+        [Parameter(Mandatory = $true)]$Version,
+        [Parameter(Mandatory = $true)][ValidateSet('win64', 'win64-windows7')][string]$Variant
+    )
+
+    Assert-VNoteRelease -Release $Release -Version $Version
+    $baseName = "VNote-$Version-$Variant"
     $required = @{
         Manifest = "$baseName.manifest.json"
         Signature = "$baseName.manifest.json.minisig"
@@ -504,7 +544,8 @@ function Get-VNoteArchiveUrl {
 function Assert-VNoteManifestFiles {
     param(
         [Parameter(Mandatory = $true)]$Manifest,
-        [Parameter(Mandatory = $true)]$Version
+        [Parameter(Mandatory = $true)]$Version,
+        [Parameter(Mandatory = $true)][ValidateSet('win64', 'win64-windows7')][string]$Variant
     )
 
     Assert-VNoteVersion -Version $Version
@@ -515,7 +556,7 @@ function Assert-VNoteManifestFiles {
         channel = 'stable'
         platform = 'windows-x64'
         version = $Version
-        variant = 'win64'
+        variant = $Variant
     }
     foreach ($name in $identity.Keys) {
         $value = Get-VNoteProperty -Object $Manifest -Name $name
@@ -533,6 +574,7 @@ function Assert-VNoteManifestFiles {
     if ($files -isnot [array] -or $files.Count -eq 0) { throw 'The signed manifest must contain a nonempty files array.' }
     $paths = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
     $totalSize = [int64]0
+    $oppositeQt = if ($Variant -eq 'win64') { '(^|/)Qt5[^/]*\.dll$' } else { '(^|/)Qt6[^/]*\.dll$' }
     foreach ($file in $files) {
         $path = Get-VNoteProperty -Object $file -Name 'path'
         if ($path -isnot [string]) { throw 'A signed manifest path is not a string.' }
@@ -541,7 +583,7 @@ function Assert-VNoteManifestFiles {
             throw 'The manifest file must not describe or replace itself.'
         }
         if (-not $paths.Add($path)) { throw "The manifest contains a case-insensitive duplicate path: $path" }
-        if ($path -match '(^|/)Qt5[^/]*\.dll$') { throw "The manifest contains a DLL for the wrong Qt major: $path" }
+        if ($path -match $oppositeQt) { throw "The manifest contains a DLL for the wrong Qt major: $path" }
         $size = Get-VNoteProperty -Object $file -Name 'size'
         Assert-VNoteInteger -Value $size -Name "size of $path"
         if ([int64]$size -gt [int64]::MaxValue - $totalSize) { throw 'The signed extraction size overflows the supported bound.' }
@@ -560,8 +602,9 @@ function Assert-VNoteManifestFiles {
             $separator = $path.IndexOf('/', $separator + 1)
         }
     }
-    if (-not $paths.Contains('vnote.exe') -or -not $paths.Contains('Qt6Core.dll')) {
-        throw 'The manifest must declare root vnote.exe and Qt6Core.dll.'
+    $qtCore = if ($Variant -eq 'win64') { 'Qt6Core.dll' } else { 'Qt5Core.dll' }
+    if (-not $paths.Contains('vnote.exe') -or -not $paths.Contains($qtCore)) {
+        throw "The manifest must declare root vnote.exe and $qtCore."
     }
 }
 
@@ -593,17 +636,18 @@ function Assert-VNoteManifest {
     param(
         [Parameter(Mandatory = $true)]$Manifest,
         [Parameter(Mandatory = $true)]$Version,
-        [Parameter(Mandatory = $true)]$CurrentVersion
+        [Parameter(Mandatory = $true)]$CurrentVersion,
+        [Parameter(Mandatory = $true)][ValidateSet('win64', 'win64-windows7')][string]$Variant
     )
 
     Assert-VNoteVersion -Version $CurrentVersion
     if ((Compare-VNoteVersion -Left $Version -Right $CurrentVersion) -le 0) {
         throw 'The offered update is not newer than the running VNote version. Use Check Release to update manually.'
     }
-    Assert-VNoteManifestFiles -Manifest $Manifest -Version $Version
+    Assert-VNoteManifestFiles -Manifest $Manifest -Version $Version -Variant $Variant
     $package = Get-VNoteProperty -Object $Manifest -Name 'fullPackage'
     $asset = Get-VNoteProperty -Object $package -Name 'asset'
-    if ($asset -isnot [string] -or $asset -cne "VNote-$Version-win64.zip") {
+    if ($asset -isnot [string] -or $asset -cne "VNote-$Version-$Variant.zip") {
         throw 'The signed full-package asset name does not match the selected update ZIP.'
     }
     Assert-VNoteInteger -Value (Get-VNoteProperty -Object $package -Name 'size') `
@@ -623,6 +667,7 @@ function Read-VerifiedVNoteManifest {
         [Parameter(Mandatory = $true)][string]$MinisignPath,
         [Parameter(Mandatory = $true)]$Version,
         [Parameter(Mandatory = $true)]$CurrentVersion,
+        [Parameter(Mandatory = $true)][ValidateSet('win64', 'win64-windows7')][string]$Variant,
         [Parameter(Mandatory = $true)][string[]]$TrustedKeys
     )
 
@@ -696,7 +741,7 @@ function Read-VerifiedVNoteManifest {
         $manifestStream.Position = 0
         $reader = New-Object IO.StreamReader ($manifestStream, [Text.Encoding]::UTF8, $true)
         $manifest = ConvertFrom-Json -InputObject ($reader.ReadToEnd()) -ErrorAction Stop
-        return (Assert-VNoteManifest -Manifest $manifest -Version $Version -CurrentVersion $CurrentVersion)
+        return (Assert-VNoteManifest -Manifest $manifest -Version $Version -CurrentVersion $CurrentVersion -Variant $Variant)
     }
     finally {
         $ErrorActionPreference = $savedPreference
@@ -807,13 +852,14 @@ function Expand-VerifiedVNotePackage {
 
     if ($null -ne $script:VNotePreparationGuard) { $null = & $script:VNotePreparationGuard }
     $version = Get-VNoteProperty -Object $Manifest -Name 'version'
-    $null = Assert-VNoteManifestFiles -Manifest $Manifest -Version $version
+    $variant = Get-VNoteProperty -Object $Manifest -Name 'variant'
+    $null = Assert-VNoteManifestFiles -Manifest $Manifest -Version $version -Variant $variant
     $reference = if ($Delta) { Get-VNoteDelta -Manifest $Manifest } else { Get-VNoteProperty -Object $Manifest -Name 'fullPackage' }
     $asset = Get-VNoteProperty -Object $reference -Name 'asset'
     $archiveSize = Get-VNoteProperty -Object $reference -Name 'size'
     $archiveHash = Get-VNoteProperty -Object $reference -Name 'sha256'
     $null = Assert-VNoteInteger -Value $archiveSize -Name 'archive.size' -Minimum 1 -Maximum 4294967296
-    $expectedAsset = if ($Delta) { "VNote-$version-win64.delta.zip" } else { "VNote-$version-win64.zip" }
+    $expectedAsset = "VNote-$version-$variant$(if ($Delta) {'.delta.zip'} else {'.zip'})"
     if ($asset -isnot [string] -or $asset -cne $expectedAsset) {
         throw 'The signed archive asset does not match the requested package.'
     }
@@ -872,7 +918,7 @@ function Expand-VerifiedVNotePackage {
         if ($actualArchiveHash -ine $archiveHash) { throw 'The ZIP SHA-256 differs from its signed hash.' }
         $archiveStream.Position = 0
         $zip = [System.IO.Compression.ZipArchive]::new($archiveStream, [System.IO.Compression.ZipArchiveMode]::Read, $true)
-        $wrapper = "VNote-$version-win64"
+        $wrapper = "VNote-$version-$variant"
         $wrapperPrefix = $wrapper + '/'
         $seenPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
         $explicitDirectories = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
@@ -1000,7 +1046,7 @@ function Expand-VerifiedVNotePackage {
                 $manifestText = $manifestText.Substring(1)
             }
             $inPackageManifest = ConvertFrom-Json -InputObject $manifestText -ErrorAction Stop
-            $null = Assert-VNoteManifestFiles -Manifest $inPackageManifest -Version $version
+            $null = Assert-VNoteManifestFiles -Manifest $inPackageManifest -Version $version -Variant $variant
             if ($inPackageManifest.PSObject.Properties.Name -icontains 'fullPackage' -or
                 $inPackageManifest.PSObject.Properties.Name -icontains 'delta') {
                 throw 'The in-package manifest must not contain release archive references.'
@@ -1628,6 +1674,7 @@ function Invoke-VNoteUpdate {
         [Parameter(Mandatory = $true)][ValidateSet('github', 'gitee')][string]$Source,
         [Parameter(Mandatory = $true)][string]$Version,
         [Parameter(Mandatory = $true)][string]$CurrentVersion,
+        [Parameter(Mandatory = $true)][ValidateSet('win64', 'win64-windows7')][string]$Variant,
         [Parameter(Mandatory = $true)][string]$InstallDir,
         [Parameter(Mandatory = $true)][int]$ParentProcessId,
         [Parameter(Mandatory = $true)][string]$PipeName,
@@ -1663,13 +1710,14 @@ function Invoke-VNoteUpdate {
         [VNoteUpdate.Native]::CreateDirectoryExclusive($candidate)
         $stage = $candidate
         $script:VNoteStageRoot = $stage
-        $assets = Get-VNoteReleaseAssets -Source $Source -Version $Version
+        $release = Get-VNoteRelease -Source $Source -Version $Version
+        $assets = Select-VNoteReleaseAssets -Release $release -Version $Version -Variant $Variant
         $manifestPath = [IO.Path]::Combine($stage, 'release.manifest.json')
         $signaturePath = $manifestPath + '.minisig'
         Receive-VNoteFile -Url $assets.Manifest -Destination $manifestPath -Source $Source -MaxBytes 16777216
         Receive-VNoteFile -Url $assets.Signature -Destination $signaturePath -Source $Source -MaxBytes 65536
         $manifest = Read-VerifiedVNoteManifest -Path $manifestPath -SignaturePath $signaturePath -MinisignPath $minisign `
-            -Version $Version -CurrentVersion $CurrentVersion -TrustedKeys $script:VNoteTrustedKeys
+            -Version $Version -CurrentVersion $CurrentVersion -Variant $Variant -TrustedKeys $script:VNoteTrustedKeys
         $packagePath = Receive-VNotePackage -Source $Source -Assets $assets -Manifest $manifest `
             -CurrentVersion $CurrentVersion -InstallDir $root
         Assert-VNoteParentPreparing -Session $session
@@ -1864,7 +1912,8 @@ function Assert-VNotePackageContents {
     )
 
     $version = Get-VNoteProperty -Object $Manifest -Name 'version'
-    Assert-VNoteManifestFiles -Manifest $Manifest -Version $version
+    $variant = Get-VNoteProperty -Object $Manifest -Name 'variant'
+    Assert-VNoteManifestFiles -Manifest $Manifest -Version $version -Variant $variant
     $rootPath = (Get-VNoteDirectoryIdentity -Path $Root).Path
     Assert-VNoteNoReparse -Path $rootPath
     $prefix = $rootPath + [IO.Path]::DirectorySeparatorChar
@@ -1931,7 +1980,7 @@ function Assert-VNotePackageContents {
         if ($null -ne $reader) { $reader.Dispose() }
         if ($null -ne $stream) { $stream.Dispose() }
     }
-    Assert-VNoteManifestFiles -Manifest $embedded -Version $version
+    Assert-VNoteManifestFiles -Manifest $embedded -Version $version -Variant $variant
     if ($embedded.PSObject.Properties.Name -icontains 'fullPackage' -or
         $embedded.PSObject.Properties.Name -icontains 'delta') {
         throw 'The in-package manifest must not contain release archive references.'
@@ -1962,7 +2011,7 @@ function Assert-VNoteInstallReady {
     )
 
     $root = Get-VNoteInstallRoot -InstallDir $InstallDir
-    Assert-VNoteManifestFiles -Manifest $Manifest -Version $Manifest.version
+    Assert-VNoteManifestFiles -Manifest $Manifest -Version $Manifest.version -Variant $Manifest.variant
     [decimal]$oldSize = 0
     foreach ($entry in (Get-VNoteTree -Root $root)) {
         if (($entry.Attributes -band [IO.FileAttributes]::Directory) -eq 0) { $oldSize += [long]$entry.Length }
@@ -2356,7 +2405,7 @@ function Install-VNotePackage {
 # every named argument and never discovers an installation or configuration itself.
 if ($MyInvocation.InvocationName -ne '.') {
     try {
-        foreach ($required in @('Source', 'Version', 'CurrentVersion', 'InstallDir',
+        foreach ($required in @('Source', 'Version', 'CurrentVersion', 'Variant', 'InstallDir',
                 'ParentProcessId', 'PipeName', 'Token')) {
             if (-not $PSBoundParameters.ContainsKey($required) -or
                 [string]::IsNullOrWhiteSpace([string]$PSBoundParameters[$required])) {

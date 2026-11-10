@@ -1,7 +1,9 @@
 #include "commentpanel.h"
 
 #include <QComboBox>
-// The free functions below call QCoreApplication::translate() directly.
+// Explicit: the free functions below call QCoreApplication::translate()
+// directly (they are not members, so tr() is unavailable). Qt 6's widget
+// headers happen to pull this in transitively; Qt 5.15's do not.
 #include <QCoreApplication>
 #include <QLabel>
 #include <QListWidget>

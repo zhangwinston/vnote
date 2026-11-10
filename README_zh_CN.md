@@ -36,7 +36,7 @@ Vnote配置数据的两个文件夹缺省保存在应用程序当前目录下。
 ## 简介
 **VNote**是一个基于Qt的开源免费笔记应用，将笔记管理与出色的编辑体验相结合，支持多种文档格式。
 
-VNote支持**Linux**、**Windows**和**macOS**平台，需要**Qt 6.9及以上版本**。不再支持Qt 5.15和Windows 7。
+VNote支持**Linux**、**Windows**和**macOS**平台。默认构建需要**Qt 6.9及以上版本**；本fork同时保留**Qt 5.15 / Windows 7**构建（`win64-windows7`）。
 
 ### 支持的格式
 **VNote不只是Markdown编辑器——以下格式现已支持：**
@@ -46,6 +46,8 @@ VNote支持**Linux**、**Windows**和**macOS**平台，需要**Qt 6.9及以上�
 * **纯文本和源代码**（`.txt`、`.log`、`.py`、`.cpp`、`.js`、`.json`、`.yaml`等）：编辑文本笔记、日志、代码和配置文件
 * **思维导图**（`.mmm`、`.emind`）：使用原生思维导图编辑器创建和编辑导图
 * **PDF**（`.pdf`）：使用内置阅读器阅读PDF文档
+
+内置PDF阅读器需要基于**Qt 6.9及以上版本**的构建。较旧的构建（包括Windows 7 / Qt 5.15版本）会使用系统默认应用打开PDF。
 
 <img src="pics/vnote-md.png" alt="VNote Markdown 编辑器" width="800">
 
