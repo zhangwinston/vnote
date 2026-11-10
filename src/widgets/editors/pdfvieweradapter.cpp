@@ -158,7 +158,8 @@ void PdfViewerAdapter::setUrl(const QString &p_url) {
 }
 
 void PdfViewerAdapter::setOutline(const QJsonArray &p_outline) {
-  // Bound the qsizetype size before narrowing to the outline's int entry count.
+  // QJsonArray::size() is int on Qt 5 and qsizetype on Qt 6; compare and narrow
+  // explicitly rather than relying on either.
   const auto total = p_outline.size();
   const int count = total > c_maxOutlineEntries ? c_maxOutlineEntries : static_cast<int>(total);
   if (count < total) {

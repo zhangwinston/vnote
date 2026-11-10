@@ -79,7 +79,7 @@ private:
 
   void removeHtmlFromImageData(QClipboard *p_clipboard, const QMimeData *p_mimeData);
 
-  void hideUnusedActions();
+  void hideUnusedActions(QMenu *p_menu);
 
   void setupCrossCopyMenu(QMenu *p_menu, QAction *p_copyAct);
 

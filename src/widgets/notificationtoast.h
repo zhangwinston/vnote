@@ -74,7 +74,13 @@ signals:
 
 protected:
   bool event(QEvent *p_event) override;
-  void enterEvent(QEnterEvent *p_event) override;
+  void enterEvent(
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+      QEnterEvent *p_event
+#else
+      QEvent *p_event
+#endif
+      ) override;
   void leaveEvent(QEvent *p_event) override;
   void mouseReleaseEvent(QMouseEvent *p_event) override;
   bool eventFilter(QObject *p_watched, QEvent *p_event) override;

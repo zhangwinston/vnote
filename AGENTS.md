@@ -8,7 +8,7 @@ Module-specific detail lives in the child `AGENTS.md` that owns the code — see
 
 - **Git** (with Git Bash on Windows)
 - **CMake** 3.21+
-- **Qt** 6.9+ (with QtWebEngine and Core5Compat)
+- **Qt** 6.9+ (with QtWebEngine and Core5Compat) for the default build; the Windows leg also retains a **Qt 5.15.2 / Windows 7** variant in CI
 - **C++20-capable compiler** (MSVC, GCC, Clang) for the syntax indexer; VNote uses C++17
 - **Python 3** for syntax catalog generation
 - **clang-format** (optional, for automatic code formatting)
@@ -185,8 +185,8 @@ source-wide Qt patterns: see [src/AGENTS.md](src/AGENTS.md).
 ## Code Style Guidelines
 
 ### Standards
-- **C++17** standard
-- **Qt 6** framework
+- **C++14** standard
+- **Qt 5/6** framework
 - CMake with `CMAKE_AUTOMOC`, `CMAKE_AUTOUIC`, `CMAKE_AUTORCC` enabled
 
 ### Formatting
@@ -267,7 +267,7 @@ VNote uses a single `vnotex` namespace. Services that wrap the vxcore C library 
 
 ### Signal/Slot Connections
 ```cpp
-// Preferred: typed signal/slot syntax
+// Preferred: new Qt5 syntax
 connect(m_taskMgr, &TaskMgr::taskOutputRequested,
         this, &VNoteX::showOutputRequested);
 
@@ -276,7 +276,7 @@ connect(this, &VNoteX::openNodeRequested, m_bufferMgr,
         QOverload<Node *, const QSharedPointer<FileOpenParameters> &>::of(&BufferMgr::open));
 ```
 
-Memory management, queued-connection metatype registration, and the rest of
+Memory management, queued-connection metatype naming (a Qt 5 correctness rule), and the rest of
 the source-wide patterns: [src/AGENTS.md § Source-Wide Qt Patterns](src/AGENTS.md#source-wide-qt-patterns).
 Noncopyable, `VNOTEX_DEPRECATED` and exception handling: [src/core/AGENTS.md](src/core/AGENTS.md#core-c-facilities).
 
@@ -383,7 +383,7 @@ Repo-wide forbidden patterns (also constrain CI, packaging, controllers and widg
 - **Never** give `UpdateService` a `ConfigMgr2` dependency — add policy to the controller.
 - **Never** restore the C++ installer, delta application or a general-purpose quit CLI/protocol.
 
-The Windows release publishes a signed full-package manifest and may also publish
+Both Windows release variants publish signed full-package manifests; Qt6 may also publish
 unused delta ZIPs. Signing and external-verifier contract: [docs/update-signing.md](docs/update-signing.md).
 Controller launch/shutdown ownership: [src/controllers/AGENTS.md § Update Check](src/controllers/AGENTS.md#update-check).
 Endpoints, source-scoped redirects and check threading:
@@ -497,9 +497,9 @@ put the full detail in the module doc.
 | Widgets | [src/widgets/AGENTS.md](src/widgets/AGENTS.md) | Widget conventions, ViewArea2 framework, styling, construction pattern |
 | GUI Services | [src/gui/AGENTS.md](src/gui/AGENTS.md) | Theme, ViewWindowFactory, GUI utilities |
 | Utilities | [src/utils/AGENTS.md](src/utils/AGENTS.md) | PathUtils, HtmlUtils, FileUtils2 reference |
-| pdf.js assets | [src/data/extra/web/pdf.js/AGENTS.md](src/data/extra/web/pdf.js/AGENTS.md) | Touching the vendored PDF viewer or its Qt 6.9+ WebEngine requirement |
+| pdf.js assets | [src/data/extra/web/pdf.js/AGENTS.md](src/data/extra/web/pdf.js/AGENTS.md) | Touching the vendored PDF viewer, or triaging "the PDF viewer is broken on the Qt 5.15 / Windows 7 build" |
 | Testing | [tests/AGENTS.md](tests/AGENTS.md) | Agent GUI smoke testing with `--no-single-instance`, test suites, test mode, fixtures, coverage |
-| CI & Packaging | [.github/AGENTS.md](.github/AGENTS.md) | Workflows, SSH runner debugging, `src/Packaging.cmake`, Qt 6 release packages |
+| CI & Packaging | [.github/AGENTS.md](.github/AGENTS.md) | Workflows, SSH runner debugging, `src/Packaging.cmake`, Qt 6 release packages, Windows 7 / Qt 5.15 variant, bundled OpenSSL |
 | vxcore (submodule) | [libs/vxcore/AGENTS.md](libs/vxcore/AGENTS.md) | C library: notebook/config/search backend |
 | vxcore Sync | [libs/vxcore/src/sync/AGENTS.md](libs/vxcore/src/sync/AGENTS.md) | Pluggable sync backend interface (ISyncBackend, SyncManager) |
 | vtextedit (submodule) | [libs/vtextedit/AGENTS.md](libs/vtextedit/AGENTS.md) | Qt editor widget library |

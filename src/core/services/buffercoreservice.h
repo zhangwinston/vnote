@@ -2,7 +2,6 @@
 #define BUFFERCORESERVICE_H
 
 #include <QByteArray>
-#include <QByteArrayView>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QObject>
@@ -10,6 +9,7 @@
 
 #include <core/noncopyable.h>
 #include <core/services/ibuffercoreservice.h>
+#include <utils/qtcompat.h>
 
 #include <vxcore/vxcore.h>
 #include <vxcore/vxcore_types.h>
@@ -95,7 +95,8 @@ public:
   // Return a non-owning view over the buffer's raw content held by vxcore.
   // The view is only valid until the next buffer-mutating operation
   // (setContent, setContentRaw, save, reload, close).
-  QByteArrayView peekContentRaw(const QString &p_bufferId, VxCoreError *p_error = nullptr) const;
+  QByteArrayViewCompat peekContentRaw(const QString &p_bufferId,
+                                      VxCoreError *p_error = nullptr) const;
 
   // Set buffer content from raw bytes.
   bool setContentRaw(const QString &p_bufferId, const QByteArray &p_data) override;

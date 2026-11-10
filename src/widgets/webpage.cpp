@@ -57,7 +57,7 @@ bool WebPage::acceptNavigationRequest(const QUrl &p_url, NavigationType p_type,
 
   const auto scheme = p_url.scheme();
   if (scheme == QStringLiteral("data")) {
-    // QWebEngineView::setHtml() navigates to a data URL.
+    // Qt 5.12 and above will trigger this when calling QWebEngineView::setHtml().
     return true;
   } else if (scheme == QStringLiteral("chrome-devtools") || scheme == QStringLiteral("devtools")) {
     return true;

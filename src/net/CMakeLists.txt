@@ -16,8 +16,8 @@ add_library(core_net STATIC ${NET_SOURCES} ${NET_HEADERS})
 
 target_link_libraries(core_net
   PUBLIC
-    Qt6::Core
-    Qt6::Network
+    Qt${QT_DEFAULT_MAJOR_VERSION}::Core
+    Qt${QT_DEFAULT_MAJOR_VERSION}::Network
 )
 
 target_include_directories(core_net

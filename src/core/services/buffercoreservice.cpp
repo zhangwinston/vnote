@@ -247,13 +247,13 @@ QByteArray BufferCoreService::getContentRaw(const QString &p_bufferId, VxCoreErr
   return QByteArray(static_cast<const char *>(data), static_cast<int>(size));
 }
 
-QByteArrayView BufferCoreService::peekContentRaw(const QString &p_bufferId,
-                                                 VxCoreError *p_error) const {
+QByteArrayViewCompat BufferCoreService::peekContentRaw(const QString &p_bufferId,
+                                                       VxCoreError *p_error) const {
   if (p_error) {
     *p_error = VXCORE_ERR_NOT_INITIALIZED;
   }
   if (!checkContext()) {
-    return QByteArrayView{};
+    return QByteArrayViewCompat{};
   }
 
   const void *data = nullptr;
@@ -265,10 +265,14 @@ QByteArrayView BufferCoreService::peekContentRaw(const QString &p_bufferId,
   }
   if (err != VXCORE_OK) {
     qWarning() << "peekContentRaw failed:" << QString::fromUtf8(vxcore_error_message(err));
-    return QByteArrayView{};
+    return QByteArrayViewCompat{};
   }
   // Return a non-owning view. Valid only until the next buffer-mutating operation.
-  return QByteArrayView(static_cast<const char *>(data), static_cast<qsizetype>(size));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  return QByteArrayViewCompat(static_cast<const char *>(data), static_cast<qsizetype>(size));
+#else
+  return QByteArray::fromRawData(static_cast<const char *>(data), static_cast<int>(size));
+#endif
 }
 
 bool BufferCoreService::setContentRaw(const QString &p_bufferId, const QByteArray &p_data) {

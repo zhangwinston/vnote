@@ -408,7 +408,8 @@ function Expand-FixturePackage {
 function Receive-FixturePackage {
     param([string]$Source)
     $stage = New-FixtureAttempt
-    $assets = Get-VNoteReleaseAssets -Source $Source -Version '9.1.0'
+    $release = Get-VNoteRelease -Source $Source -Version '9.1.0'
+    $assets = Select-VNoteReleaseAssets -Release $release -Version '9.1.0' -Variant 'win64'
     $manifestPath = Join-Path $stage 'release.manifest.json'
     $signaturePath = $manifestPath + '.minisig'
     Receive-VNoteFile -Url $assets.Manifest -Destination $manifestPath -Source $Source -MaxBytes 16777216

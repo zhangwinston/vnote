@@ -24,9 +24,11 @@ ImageHostService::ImageHostService(HookManager *p_hookMgr, QObject *p_parent)
   qRegisterMetaType<ImageHostWorkItem>();
   qRegisterMetaType<ImageHostAsyncResult>();
 
-  // String-based invokeMethod dispatch uses Q_ARG(ImageHostWorkItem, ...),
-  // so retain the unqualified name as well as the qualified metatype name.
+  // Unqualified aliases for Qt 5's by-name queued-connection argument resolution
+  // (Q_ARG(ImageHostWorkItem, ...) and ImageHostWorker's completion signals both
+  // spell the type unqualified). See the comment in searchservice.cpp.
   qRegisterMetaType<ImageHostWorkItem>("ImageHostWorkItem");
+  qRegisterMetaType<ImageHostAsyncResult>("ImageHostAsyncResult");
 
   m_thread = new QThread(this);
   // Parent the worker to this service. If no async op runs this session the

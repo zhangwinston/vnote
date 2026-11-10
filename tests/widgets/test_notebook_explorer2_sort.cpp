@@ -91,7 +91,7 @@ void mutateDialogOrder(SortDialog2 *p_dlg, const QStringList &p_desiredOrder) {
   }
 }
 
-// Simulate a header section click through the meta-object.
+// Click a header section the portable way (signals are protected under Qt 5).
 void clickDialogHeader(SortDialog2 *p_dlg, int p_column) {
   auto *tree = p_dlg->findChild<QTreeWidget *>(QLatin1String(kListWidgetName));
   Q_ASSERT(tree != nullptr);

@@ -11,8 +11,12 @@
 #include <QUrl>
 #include <QUuid>
 #include <QWebChannel>
-#include <QWebEngineContextMenuRequest>
 #include <QWebEngineSettings>
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+#include <QWebEngineContextMenuData>
+#else
+#include <QWebEngineContextMenuRequest>
+#endif
 
 #include <cmath>
 #include <limits>
@@ -164,12 +168,20 @@ MarkdownViewerContextInfo MarkdownViewer::populateContextInfo() const {
       m_services.get<ConfigMgr2>()->getCoreConfig().getShortcut(CoreConfig::Shortcut::Export);
   info.copyAction = pageAction(QWebEnginePage::Copy);
   info.defaultCopyImageAction = pageAction(QWebEnginePage::CopyImageToClipboard);
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+  const auto data = page()->contextMenuData();
+  info.hasImage = data.mediaType() == QWebEngineContextMenuData::MediaTypeImage;
+  if (info.hasImage) {
+    info.imageUrl = data.mediaUrl();
+  }
+#else
   if (auto *req = lastContextMenuRequest()) {
     info.hasImage = req->mediaType() == QWebEngineContextMenuRequest::MediaTypeImage;
     if (info.hasImage) {
       info.imageUrl = req->mediaUrl();
     }
   }
+#endif
   return info;
 }
 
@@ -311,7 +323,11 @@ void MarkdownViewer::activateNavigationTarget(quint64 p_snapshot, int p_index) {
 }
 
 void MarkdownViewer::contextMenuEvent(QContextMenuEvent *p_event) {
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+  QMenu *menu(page()->createStandardContextMenu());
+#else
   QMenu *menu(createStandardContextMenu());
+
   const auto *request = lastContextMenuRequest();
   const bool onLink = request && !request->linkUrl().isEmpty();
   const bool onImage =
@@ -393,6 +409,8 @@ void MarkdownViewer::contextMenuEvent(QContextMenuEvent *p_event) {
     menu->popup(p_event->globalPos());
     return;
   }
+#endif
+
 
   auto *selectAllAct = pageAction(QWebEnginePage::SelectAll);
   if (!menu->actions().contains(selectAllAct)) {
@@ -533,7 +551,7 @@ void MarkdownViewer::contextMenuEvent(QContextMenuEvent *p_event) {
     }
   }
 
-  hideUnusedActions();
+  hideUnusedActions(menu);
 
   p_event->accept();
 
@@ -550,7 +568,10 @@ void MarkdownViewer::contextMenuEvent(QContextMenuEvent *p_event) {
     menu->popup(p_event->globalPos());
   }
 
-  // The menu is set with WA_DeleteOnClose.
+  // For Qt 6, the menu is set with WA_DeleteOnClose.
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+  delete menu;
+#endif
 }
 
 void MarkdownViewer::handleCopyImageUrlAction() {
@@ -661,8 +682,25 @@ void MarkdownViewer::removeHtmlFromImageData(QClipboard *p_clipboard, const QMim
   }
 }
 
-void MarkdownViewer::hideUnusedActions() {
+void MarkdownViewer::hideUnusedActions(QMenu *p_menu) {
+  Q_UNUSED(p_menu);
+
   QList<QAction *> unusedActions;
+
+  // QWebEnginePage uses different actions of Back/Forward/Reload before Qt 5.15.
+  // [Woboq](https://code.woboq.org/qt5/qtwebengine/src/webenginewidgets/api/qwebenginepage.cpp.html#1652)
+  // We tell these three actions by name.
+#if (QT_VERSION < QT_VERSION_CHECK(5, 15, 0))
+  const QStringList actionNames(
+      {QWebEnginePage::tr("&Back"), QWebEnginePage::tr("&Forward"), QWebEnginePage::tr("&Reload")});
+
+  const QList<QAction *> actions = p_menu->actions();
+  for (auto it : actions) {
+    if (actionNames.contains(it->text())) {
+      unusedActions.append(it);
+    }
+  }
+#endif
 
   QVector<QWebEnginePage::WebAction> pageActions = {QWebEnginePage::SavePage,
                                                     QWebEnginePage::ViewSource,
@@ -672,9 +710,12 @@ void MarkdownViewer::hideUnusedActions() {
                                                     QWebEnginePage::OpenLinkInNewBackgroundTab,
                                                     QWebEnginePage::OpenLinkInNewTab,
                                                     QWebEnginePage::OpenLinkInNewWindow,
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 15, 0))
                                                     QWebEnginePage::Forward,
                                                     QWebEnginePage::Back,
-                                                    QWebEnginePage::Reload};
+                                                    QWebEnginePage::Reload
+#endif
+  };
 
   if (m_protectedView) {
     pageActions.append(QWebEnginePage::CopyImageUrlToClipboard);

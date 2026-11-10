@@ -26,12 +26,12 @@ set(CMAKE_AUTORCC ON)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if(DEFINED QT_DEFAULT_MAJOR_VERSION AND NOT QT_DEFAULT_MAJOR_VERSION STREQUAL "6")
-    message(FATAL_ERROR "VNote requires Qt 6; other Qt major versions are not supported.")
+set(QT_DEFAULT_MAJOR_VERSION 6 CACHE STRING "Qt version to use (5 or 6), defaults to 6")
+# Qt6 builds require 6.9+ (WebEngine/Core5Compat API floor kept from master);
+# Qt5 builds stay on 5.15 for the Windows 7 leg.
+if(QT_DEFAULT_MAJOR_VERSION GREATER 5)
+    find_package(Qt6 6.9 REQUIRED COMPONENTS Core)
 endif()
-# Keep dependency subprojects on the same Qt major version.
-set(QT_DEFAULT_MAJOR_VERSION 6)
-find_package(Qt6 6.9 REQUIRED COMPONENTS Core)
 
 # Windows packages install FLAT: the release ZIP's single top-level directory IS
 # the install root, with vnote.exe and every DLL directly beneath it. An extra
@@ -102,17 +102,32 @@ add_subdirectory(libs)
 option(VNOTE_USE_KEYCHAIN "Build with QtKeychain for secure credential storage" ON)
 
 set(VNOTE_KEYCHAIN_AVAILABLE FALSE)
-if(VNOTE_USE_KEYCHAIN)
-    set(BUILD_WITH_QT6 ON CACHE BOOL "Build QtKeychain with Qt6" FORCE)
-    find_package(Qt6Keychain QUIET)
+    if(VNOTE_USE_KEYCHAIN)
+    # Select QtKeychain variant (Qt5 or Qt6) based on QT_DEFAULT_MAJOR_VERSION.
+    if(QT_DEFAULT_MAJOR_VERSION GREATER 5)
+        set(BUILD_WITH_QT6 ON CACHE BOOL "Build QtKeychain with Qt6" FORCE)
+        find_package(Qt6Keychain QUIET)
+    else()
+        set(BUILD_WITH_QT6 OFF CACHE BOOL "Build QtKeychain with Qt5" FORCE)
+        find_package(Qt5Keychain QUIET)
+    endif()
 
-    if(Qt6Keychain_FOUND)
+    if(Qt6Keychain_FOUND OR Qt5Keychain_FOUND)
         set(VNOTE_KEYCHAIN_AVAILABLE TRUE)
-        message(STATUS "QtKeychain: found system Qt6Keychain (target Qt6Keychain::Qt6Keychain)")
+        if(QT_DEFAULT_MAJOR_VERSION GREATER 5)
+            message(STATUS "QtKeychain: found system Qt6Keychain (target Qt6Keychain::Qt6Keychain)")
+        else()
+            message(STATUS "QtKeychain: found system Qt5Keychain (target Qt5Keychain::Qt5Keychain)")
+        endif()
     else()
         message(STATUS "QtKeychain: system QtKeychain not found, falling back to FetchContent (v0.14.3)")
         include(FetchContent)
         # Configure QtKeychain build options before population.
+        if(QT_DEFAULT_MAJOR_VERSION GREATER 5)
+            set(BUILD_WITH_QT6 ON CACHE BOOL "Build QtKeychain with Qt6" FORCE)
+        else()
+            set(BUILD_WITH_QT6 OFF CACHE BOOL "Build QtKeychain with Qt5" FORCE)
+        endif()
         set(BUILD_TEST_APPLICATION OFF CACHE BOOL "Disable QtKeychain test app" FORCE)
         set(BUILD_TRANSLATIONS OFF CACHE BOOL "Disable QtKeychain translations" FORCE)
         FetchContent_Declare(
@@ -121,7 +136,7 @@ if(VNOTE_USE_KEYCHAIN)
             GIT_TAG        0.14.3
         )
         FetchContent_MakeAvailable(qtkeychain)
-        if(TARGET Qt6Keychain OR TARGET qt6keychain)
+        if(TARGET Qt6Keychain OR TARGET qt6keychain OR TARGET Qt5Keychain OR TARGET qt5keychain)
             set(VNOTE_KEYCHAIN_AVAILABLE TRUE)
             message(STATUS "QtKeychain: fetched and built v0.14.3")
         else()
@@ -137,6 +152,13 @@ add_subdirectory(src)
 option(VNOTE_BUILD_THEME_DEMO "Build the theme visibility demo" OFF)
 if(VNOTE_BUILD_THEME_DEMO)
     add_subdirectory(tools/theme-demo)
+endif()
+
+# tlsprobe: Windows-only CI gate proving the packaged build can initialize TLS.
+# Deliberately in the default ALL target (so the Qt5 job's plain `cmake --build .`
+# produces it) and independent of VNOTE_BUILD_TESTS, which that job sets to OFF.
+if(WIN32)
+    add_subdirectory(tools/tlsprobe)
 endif()
 
 enable_testing()

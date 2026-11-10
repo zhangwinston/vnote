@@ -70,10 +70,20 @@ bool familyMatches(const QString &p_family, const QString &p_candidate) {
 }
 } // namespace
 
-QStringList SystemFontProbe::families() const { return QFontDatabase::families(); }
+QStringList SystemFontProbe::families() const {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  return QFontDatabase::families();
+#else
+  return QFontDatabase().families();
+#endif
+}
 
 bool SystemFontProbe::supportsSimplifiedChinese(const QString &p_family) const {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   const auto systems = QFontDatabase::writingSystems(p_family);
+#else
+  const auto systems = QFontDatabase().writingSystems(p_family);
+#endif
   return systems.contains(QFontDatabase::SimplifiedChinese);
 }
 

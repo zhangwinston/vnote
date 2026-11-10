@@ -41,6 +41,7 @@
 #include <QWindow>
 
 #include <algorithm>
+#include <functional>
 #include <stdexcept>
 
 #include <vtextedit/markdowndocument.h>
@@ -957,6 +958,7 @@ void MarkdownViewWindow2::handlePrint() {
   }
 }
 
+
 void MarkdownViewWindow2::printDocument(const QSharedPointer<QPrinter> &p_printer) {
   if (!p_printer || m_printPending || m_printer || getBuffer().isEncrypted() || !isEnabled() ||
       !getBuffer().isValid() || !m_sourceAvailable || m_rebindingBuffer) {
@@ -1004,6 +1006,7 @@ void MarkdownViewWindow2::printDocument(const QSharedPointer<QPrinter> &p_printe
     requestEditorNativeRender();
   } else {
     requestNativeRender(getLatestContent());
+
   }
 }
 
@@ -1297,12 +1300,16 @@ bool MarkdownViewWindow2::setupViewer() {
     webPage->setSensitiveContent(true);
   }
   // Keep a live printer until WebEngine finishes, even if its document was replaced.
+  // QWebEngineView::printFinished only exists in Qt 6; Qt 5 reports completion
+  // through the page()->print callback bound at the print call site.
   const QPointer<MarkdownViewWindow2> guard(this);
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
   connect(m_viewer, &MarkdownViewer::printFinished, m_viewer, [guard](bool p_ok) {
     if (guard) {
       guard->onPrintFinished(p_ok);
     }
   });
+#endif
   connectViewerSignals();
   return true;
 }
@@ -1475,7 +1482,13 @@ void MarkdownViewWindow2::connectViewerSignals() {
       m_printPending = false;
       if (m_printer && m_printBufferGeneration == getBufferGeneration() && isEnabled() &&
           isVisible()) {
+#if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
+        m_printer->setOutputFormat(QPrinter::PdfFormat);
+        m_viewer->page()->print(m_printer.data(), std::bind(&MarkdownViewWindow2::onPrintFinished,
+                                                            this, std::placeholders::_1));
+#else
         m_viewer->print(m_printer.get());
+#endif
       } else {
         m_printer.reset();
       }
@@ -1505,11 +1518,19 @@ void MarkdownViewWindow2::connectViewerSignals() {
 
   // Task list checkbox toggle from the preview.
   connect(adapterObj, &MarkdownViewerAdapter::taskListItemToggleRequested, this,
+
           [this, current](const QString &p_token, int p_line, bool p_checked) {
             if (current() && m_viewerReady && m_sourceAvailable && !m_rebindingBuffer) {
               onTaskListItemToggleRequested(p_token, p_line, p_checked);
             }
           });
+
+  // Print finished cleanup. QWebEngineView::printFinished only exists in Qt 6;
+  // the Qt 5 print path invokes onPrintFinished via the page()->print callback.
+#if (QT_VERSION >= QT_VERSION_CHECK(6, 0, 0))
+  connect(m_viewer, &MarkdownViewer::printFinished, this, &MarkdownViewWindow2::onPrintFinished);
+#endif
+
 
   // Outline pipeline: viewer headings -> OutlineProvider.
   connect(adapterObj, &MarkdownViewerAdapter::headingsChanged, this, [this, current]() {
@@ -3544,7 +3565,7 @@ void MarkdownViewWindow2::removeSessionHeadingSectionNumbers() {
     VxCoreError error = VXCORE_OK;
     const auto raw = buffer.peekContentRaw(&error);
     const auto encoded = bufferService->encodeContent(buffer.id(), writerText);
-    if (error != VXCORE_OK || raw != QByteArrayView(encoded)) {
+    if (error != VXCORE_OK || raw != QByteArrayViewCompat(encoded)) {
       unavailable();
       return;
     }
