@@ -407,7 +407,7 @@ bool TypstViewWindow::Insertion::prepareImage(const QString &p_source, const QIm
   }
   QPointer<ImageInsertDialog> dialog(
       new ImageInsertDialog(TypstViewWindow::tr("Insert Image"), QString(), p_alt, QString(),
-                            view->getServices().get<ConfigMgr2>(), true, view));
+                            view->getServices().get<ConfigMgr2>(), QString(), true, view));
   const auto cleanup = qScopeGuard([dialog] { delete dialog.data(); });
   dialog->setTypstMode();
   QObject::connect(dialog, &ImageInsertDialog::imageSourceRequested, dialog,
