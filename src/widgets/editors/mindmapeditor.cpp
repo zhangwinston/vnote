@@ -916,7 +916,7 @@ bool MindMapEditor::prepareImage(Insertion &p_insertion, const QString &p_source
   const QPointer<MindMapEditor> guard(this);
   QPointer<ImageInsertDialog> dialog(new ImageInsertDialog(tr("Insert Image"), QString(), QString(),
                                                            QString(), m_services.get<ConfigMgr2>(),
-                                                           true, this));
+                                                           QString(), true, this));
   const auto cleanup = qScopeGuard([dialog] { delete dialog.data(); });
   dialog->setMindMapMode();
   dialog->setEncryptedNote(p_insertion.buffer.isEncrypted());
