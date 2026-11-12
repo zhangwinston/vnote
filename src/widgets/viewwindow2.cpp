@@ -1179,7 +1179,17 @@ QString ViewWindow2::promptSuggestedRename() {
   }
 
   const QString currentName = getName();
-  const QString suggested = NoteAutoRename::suggestedFileName(currentName, getLatestContent());
+  // Only default-named notes are candidates; skip the content fetch (which can
+  // throw when the outgoing source is unavailable, e.g. during a buffer
+  // replacement whose file was removed) for every other name.
+  if (!NoteAutoRename::isDefaultNoteName(currentName)) {
+    return QString();
+  }
+  QString content;
+  if (!tryGetLatestContent(&content)) {
+    return QString();
+  }
+  const QString suggested = NoteAutoRename::suggestedFileName(currentName, content);
   if (suggested.isEmpty()) {
     return QString();
   }

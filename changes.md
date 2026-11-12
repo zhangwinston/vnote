@@ -1,6 +1,8 @@
 # Changes
 
 ## Unreleased
+* Restore Typst math rendering in generated and protected Markdown viewer templates on Qt 6 by propagating the Typst compile definition to core_services, which previously compiled the silent KaTeX fallback
+* Skip the suggested-rename prompt for notes without a default name or with an unavailable source instead of throwing during buffer replacement
 * Fix CI recovery-archive, folded math-preview geometry and heading-navigation fixtures; disable the repeatedly timing-out Linux view-area suite in CTest while retaining its build and Windows coverage
 * Show text beside the Home and United Entry toolbar icons, matching Export
 * On version upgrade, add missing default United Entry aliases to saved nonempty lists, preserving custom definitions and explicit empty-list opt-outs; profiles already on 4.14.0 receive this on their next version change
