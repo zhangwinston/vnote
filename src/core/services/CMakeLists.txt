@@ -166,6 +166,16 @@ target_include_directories(core_services
     ${CMAKE_SOURCE_DIR}/libs/vxcore/src
 )
 
+# htmltemplateservice.cpp guards its Typst call sites with the VTEXTEDIT_ENABLE_TYPST
+# compile definition that VTextEdit exports PUBLIC, but core_services deliberately
+# links neither VTextEdit nor Qt::Widgets. Without this the Qt 6 build silently
+# compiles the KaTeX fallback and degrades Typst math rendering everywhere
+# (see test_webengineprofileservice::protectedTypstMath). The definition alone
+# propagates; the Qt 5 variant stays with the fallback.
+if(VTEXTEDIT_ENABLE_TYPST)
+  target_compile_definitions(core_services PRIVATE VTEXTEDIT_ENABLE_TYPST)
+endif()
+
 set_target_properties(core_services PROPERTIES
   AUTOMOC ON
 )
