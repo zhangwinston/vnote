@@ -1,6 +1,8 @@
 # Changes
 
 ## Unreleased
+* Restore Typst math rendering in generated and protected Markdown viewer templates on Qt 6 by propagating the Typst compile definition to core_services, which previously compiled the silent KaTeX fallback
+* Skip the suggested-rename prompt for notes without a default name or with an unavailable source instead of throwing during buffer replacement
 
 ## v4.15.2
 A maintenance release with steadier TODO planning, improved Markdown editing and clearer file navigation on top of VNote 4.15.1:
