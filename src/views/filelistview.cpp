@@ -545,7 +545,11 @@ void FileListView::dragMoveEvent(QDragMoveEvent *p_event) {
             const bool isAnchor =
                 (pos == QAbstractItemView::AboveItem || pos == QAbstractItemView::BelowItem);
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
             const NodeInfo anchorInfo = nodeInfoFromIndex(indexAt(p_event->position().toPoint()));
+#else
+            const NodeInfo anchorInfo = nodeInfoFromIndex(indexAt(p_event->pos()));
+#endif
             if (sameView && isAnchor && isReorderAllowed() && anchorInfo.isValid() &&
                 !anchorInfo.isExternal && !anchorInfo.isFolder) {
               p_event->acceptProposedAction();

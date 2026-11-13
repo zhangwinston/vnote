@@ -1088,7 +1088,9 @@ ViewSplit2 *ViewArea2::hostedSplitForWorkspace(const QString &p_workspaceId) con
 }
 
 ViewSplit2 *ViewArea2::owningSplitForWindow(ID p_windowId) const {
-  const auto *window = windowForId(p_windowId);
+  // Keep the pointer non-const: QSplitter::indexOf(QWidget*) only started
+  // accepting const widgets in Qt 6.
+  auto *window = windowForId(p_windowId);
   if (!window) {
     return nullptr;
   }
@@ -1387,8 +1389,10 @@ void ViewArea2::registerViewWindow(ID p_windowId, ViewWindow2 *p_window) {
   p_window->setViewWindowId(p_windowId);
   connect(p_window, &QObject::destroyed, this, [this, p_windowId](QObject *p_object) {
     // Hidden owners may delete directly; an old view must not erase its replacement.
-    const auto entry = m_windows.constFind(p_windowId);
-    if (entry != m_windows.cend() && entry.value() == p_object) {
+    // QMap::erase() takes a const_iterator only since Qt 6; use find() so the
+    // same iterator type works on Qt 5.
+    auto entry = m_windows.find(p_windowId);
+    if (entry != m_windows.end() && entry.value() == p_object) {
       m_windows.erase(entry);
     }
   });
@@ -2182,13 +2186,18 @@ bool ViewArea2::promotePreviewViewWindow(ID p_windowId, const QString &p_preview
            hostedSplitForWorkspace(p_targetWorkspaceId) == target && !target->isPreview();
   };
   {
-    QSignalBlocker previewSignals(preview), targetSignals(target);
+    // Manual blocking instead of QSignalBlocker: its destructor would call
+    // blockSignals() on an object that takeViewWindow() below may destroy,
+    // and the dismiss() escape hatch is Qt 6 only. The guard restores live
+    // objects only.
+    const bool previewWasBlocked = preview->blockSignals(true);
+    const bool targetWasBlocked = target->blockSignals(true);
     const auto unblock = qScopeGuard([&] {
-      if (!preview) {
-        previewSignals.dismiss();
+      if (preview) {
+        preview->blockSignals(previewWasBlocked);
       }
-      if (!target) {
-        targetSignals.dismiss();
+      if (target) {
+        target->blockSignals(targetWasBlocked);
       }
     });
     preview->takeViewWindow(incoming);
@@ -2226,13 +2235,16 @@ bool ViewArea2::promotePreviewViewWindow(ID p_windowId, const QString &p_preview
     return true;
   }
   {
-    QSignalBlocker previewSignals(preview), targetSignals(target);
+    // Same manual-blocking pattern as above: QSignalBlocker's destructor
+    // would touch possibly-destroyed objects and dismiss() is Qt 6 only.
+    const bool previewWasBlocked = preview->blockSignals(true);
+    const bool targetWasBlocked = target->blockSignals(true);
     const auto unblock = qScopeGuard([&] {
-      if (!preview) {
-        previewSignals.dismiss();
+      if (preview) {
+        preview->blockSignals(previewWasBlocked);
       }
-      if (!target) {
-        targetSignals.dismiss();
+      if (target) {
+        target->blockSignals(targetWasBlocked);
       }
     });
     if (replaceSource &&

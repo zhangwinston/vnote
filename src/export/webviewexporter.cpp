@@ -389,7 +389,11 @@ bool WebViewExporter::renderHtml(const ExportInput &p_input, const ExportHtmlReq
   auto *watcher = new QFutureWatcher<MarkdownHtmlResult>(QCoreApplication::instance());
   connect(watcher, &QFutureWatcher<MarkdownHtmlResult>::finished, watcher,
           [watcher, self, viewer, generation, cancelled]() {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 3, 0)
             const auto result = watcher->future().takeResult();
+#else
+            const auto result = watcher->future().result();
+#endif
             watcher->deleteLater();
             if (!self || !viewer || self->m_viewer != viewer ||
                 self->m_nativeGeneration != generation || self->m_askedToStop ||

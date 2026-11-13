@@ -1,6 +1,7 @@
 # Changes
 
 ## Unreleased
+* Restore compilation of the Qt 5.15 / Windows 7 variant by guarding Qt 6-only APIs (QRegularExpression::matchView, QFuture::takeResult, QProcess::startCommand, QDragMoveEvent::position, QVariant::metaType, QList::toList in vtextedit) and fixing const/iterator mismatches in ViewArea2, verified with a full rockylinux:8 Qt 5.15.3 build
 * Restore Typst math rendering in generated and protected Markdown viewer templates on Qt 6 by propagating the Typst compile definition to core_services, which previously compiled the silent KaTeX fallback
 * Skip the suggested-rename prompt for notes without a default name or with an unavailable source instead of throwing during buffer replacement
 * Fix CI recovery-archive, folded math-preview geometry and heading-navigation fixtures; disable the repeatedly timing-out Linux view-area suite in CTest while retaining its build and Windows coverage

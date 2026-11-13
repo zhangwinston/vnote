@@ -684,7 +684,9 @@ struct VNoteApiBackend::Impl {
       offset = continuation;
     }
     const auto boundary = [&utf8](qint64 pos) {
-      return pos == utf8.size() || (quint8(utf8[pos]) & 0xc0) != 0x80;
+      // QByteArray::operator[] takes int on Qt 5; the qint64 index is
+      // ambiguous against the built-in const char* subscript there.
+      return pos == utf8.size() || (quint8(utf8[static_cast<int>(pos)]) & 0xc0) != 0x80;
     };
     if (offset < 0 || offset > utf8.size() || !boundary(offset)) {
       finish(id, failure(400, "invalid_offset", "The offset must be a UTF-8 byte boundary."));
@@ -865,8 +867,11 @@ struct VNoteApiBackend::Impl {
       finish(id, failure(503, "unavailable", "Search is unavailable."));
       return;
     }
-    QStringList books =
-        cmd.notebookIds.isEmpty() ? item->context.principal.notebookIds.values() : cmd.notebookIds;
+    // QSet::values() returns QList<QString>, which is only spelled
+    // QStringList on Qt 6; normalize so the ternary has one result type.
+    QStringList books = cmd.notebookIds.isEmpty()
+                            ? QStringList(item->context.principal.notebookIds.values())
+                            : cmd.notebookIds;
     std::sort(books.begin(), books.end());
     int files = 0, scanned = 0;
     qint64 totalBytes = 0;

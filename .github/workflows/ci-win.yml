@@ -29,8 +29,13 @@ jobs:
   build:
     name: ${{ matrix.config.name }}
     runs-on: windows-${{ matrix.config.vs_version }}
-    # Leave room for the full test suite and package gates after a cold build.
-    timeout-minutes: 180
+    # Post-rebase cold builds alone exceed 3h on the 2-core Windows runner, and a
+    # timeout cancel also skips the actions/cache post step, so the sccache cache
+    # never saves: every retry is another cold build and 180 minutes can never
+    # succeed (four consecutive 3h0m timeouts 2026-11-11..13). 360 (the hosted
+    # per-job maximum) lets one run complete and prime the cache; trim back toward
+    # 180 only after warm-cache runs are proven to fit.
+    timeout-minutes: 360
 
     strategy:
       fail-fast: false

@@ -667,7 +667,11 @@ OutlineSectionEditor::HeadingEditResult OutlineSectionEditor::renameHeading(
       replacement.m_end = heading.startPos + source.size();
       const auto body = source.mid(match.capturedEnd());
       static const QRegularExpression closing(QStringLiteral("(?:[\\t ]+|\\A)#+[\\t ]*\\z"));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
       const auto suffix = closing.matchView(body);
+#else
+      const auto suffix = closing.match(body.toString());
+#endif
       if (suffix.hasMatch()) {
         replacement.m_end = replacement.m_start + suffix.capturedStart();
         if (suffix.capturedStart() == 0 && !p_topic.isEmpty()) {

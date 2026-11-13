@@ -24,9 +24,11 @@ Diagnostic reruns require the test step itself to have failed and a nonempty
 native-editor histories are independent: `ctest --rerun-failed` without its own
 failure history can rerun a passing suite after an unrelated failure.
 
-Linux, Windows and macOS allow 180 minutes for cold builds, full native test suites,
-package gates and artifact publication. Keep the individual CTest deadlines; the job
-budget is not a test timeout.
+Linux and macOS allow 180 minutes for cold builds, full native test suites,
+package gates and artifact publication; ci-win.yml allows 360 because a post-rebase
+cold Qt 6 build alone exceeds 3h and a timeout cancel also skips the sccache
+cache save, so a shorter budget deadlocks the workflow on cold builds forever.
+Keep the individual CTest deadlines; the job budget is not a test timeout.
 macOS creates and unlocks its disposable test keychain only after test compilation,
 right before running CTest. Cold builds must not consume the vault's unlock lease;
 restore the original keychain before final packaging and signing.

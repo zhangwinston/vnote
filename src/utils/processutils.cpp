@@ -125,7 +125,12 @@ ProcessUtils::State ProcessUtils::start(const QString &p_command,
                                         const std::function<void(const QString &)> &p_logger,
                                         const bool &p_askedToStop) {
   QProcess proc;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   proc.startCommand(p_command);
+#else
+  // The QString overload of start() is the Qt 5 spelling of startCommand().
+  proc.start(p_command);
+#endif
   return handleProcess(&proc, p_logger, p_askedToStop);
 }
 
@@ -208,7 +213,11 @@ void ProcessUtils::startDetached(const QString &p_command) {
   auto process = new QProcess();
   QObject::connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), process,
                    &QProcess::deleteLater);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   process->startCommand(p_command);
+#else
+  process->start(p_command);
+#endif
 }
 
 void ProcessUtils::startDetached(const QString &p_program, const QStringList &p_args) {
