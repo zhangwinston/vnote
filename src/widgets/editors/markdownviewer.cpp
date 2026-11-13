@@ -325,6 +325,10 @@ void MarkdownViewer::activateNavigationTarget(quint64 p_snapshot, int p_index) {
 void MarkdownViewer::contextMenuEvent(QContextMenuEvent *p_event) {
 #if (QT_VERSION < QT_VERSION_CHECK(6, 0, 0))
   QMenu *menu(page()->createStandardContextMenu());
+  // Qt 5 spelling of the QWebEngineContextMenuRequest probe below; the
+  // controller-less fallback later in this function needs the same flag.
+  const bool onImage =
+      page()->contextMenuData().mediaType() == QWebEngineContextMenuData::MediaTypeImage;
 #else
   QMenu *menu(createStandardContextMenu());
 
@@ -410,7 +414,6 @@ void MarkdownViewer::contextMenuEvent(QContextMenuEvent *p_event) {
     return;
   }
 #endif
-
 
   auto *selectAllAct = pageAction(QWebEnginePage::SelectAll);
   if (!menu->actions().contains(selectAllAct)) {
@@ -842,7 +845,9 @@ void MarkdownViewer::saveContent(const std::function<void(const QString &p_conte
                           if (!self || !self->m_adapter->isDocumentReady() ||
                               self->m_adapter->documentGeneration() != generation ||
                               result.value(QStringLiteral("generation")).toString() != generation ||
-                              result.value(QStringLiteral("text")).metaType().id() !=
+                              // QVariant::metaType() is Qt 6 only; userType()
+                              // returns the same meta type id on both majors.
+                              result.value(QStringLiteral("text")).userType() !=
                                   QMetaType::QString) {
                             p_callback(QString());
                             return;

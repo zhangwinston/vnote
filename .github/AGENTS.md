@@ -25,8 +25,9 @@ native-editor histories are independent: `ctest --rerun-failed` without its own
 failure history can rerun a passing suite after an unrelated failure.
 
 Linux, Windows and macOS allow 360 minutes for cold builds, full native test suites,
-package gates and artifact publication. Keep the individual CTest deadlines; the job
-budget is not a test timeout.
+package gates and artifact publication; on ci-win a timeout cancel also skips the
+sccache cache save, so avoid budget-trimming experiments there. Keep the individual
+CTest deadlines; the job budget is not a test timeout.
 macOS creates and unlocks its disposable test keychain only after test compilation,
 right before running CTest. Cold builds must not consume the vault's unlock lease;
 restore the original keychain before final packaging and signing.
