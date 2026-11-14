@@ -445,8 +445,15 @@ endif()
         include(InstallRequiredSystemLibraries)
     endif()
 else()
-    install(DIRECTORY "${VX_TYPST_NOTICES_DIR}/"
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/vnote/typst")
+    # VX_TYPST_NOTICES_DIR is only defined when the Typst backend is built.
+    # With the variable empty, "${VX_TYPST_NOTICES_DIR}/" degenerates to "/"
+    # and CPack starts staging the whole filesystem root into
+    # licenses/vnote/typst (seen as copies of /proc on the Qt 5.15 AppImage
+    # leg). The Qt 5.15 / Windows 7 variant ships neither backend nor notices.
+    if(VTEXTEDIT_ENABLE_TYPST)
+        install(DIRECTORY "${VX_TYPST_NOTICES_DIR}/"
+            DESTINATION "${CMAKE_INSTALL_DATADIR}/licenses/vnote/typst")
+    endif()
     message(STATUS "LinuxDeployExecutable: ${LINUXDEPLOY_EXECUTABLE}")
     if(LINUXDEPLOY_EXECUTABLE)
         message(STATUS "Package generation - Linux - AppImage")
