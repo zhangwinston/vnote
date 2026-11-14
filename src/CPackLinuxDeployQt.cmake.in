@@ -8,9 +8,22 @@ execute_process(
 if(NOT _typst_install_result STREQUAL "0")
     message(FATAL_ERROR "AppDir installation failed: ${_typst_install_result}")
 endif()
-set(_typst_installed_library "@VX_APPIMAGE_DEST_DIR@@CMAKE_INSTALL_FULL_LIBDIR@/libvtextedit_typst.so.1")
-if(NOT EXISTS "${_typst_installed_library}")
-    message(FATAL_ERROR "AppDir is missing the installed Typst library: ${_typst_installed_library}")
+
+# The Typst library and Qt6Pdf exist only when VTEXTEDIT_ENABLE_TYPST is on
+# (Qt 6); the Qt 5.15 / Windows 7 variant ships neither, so the -l deploy
+# input and both post-deploy checks are skipped there. _typst_enabled is
+# compared as a variable — a bare if(@...@) constant is re-parsed as a
+# variable name under CMP0012 OLD and silently evaluates false.
+# _typst_deploy_args is a CMake list ("-l;/path"), expanding into exactly two
+# arguments — unlike a space-joined string, which execute_process passes as one.
+set(_typst_enabled "@VTEXTEDIT_ENABLE_TYPST@")
+set(_typst_deploy_args "")
+if(_typst_enabled)
+    set(_typst_installed_library "@VX_APPIMAGE_DEST_DIR@@CMAKE_INSTALL_FULL_LIBDIR@/libvtextedit_typst.so.1")
+    if(NOT EXISTS "${_typst_installed_library}")
+        message(FATAL_ERROR "AppDir is missing the installed Typst library: ${_typst_installed_library}")
+    endif()
+    list(APPEND _typst_deploy_args -l "${_typst_installed_library}")
 endif()
 
 execute_process(
@@ -18,7 +31,7 @@ execute_process(
         "LD_LIBRARY_PATH=/usr/local/lib64:$ENV{LD_LIBRARY_PATH}"
         "@LINUXDEPLOY_EXECUTABLE@" --plugin=qt --output=appimage
         "--appdir=@VX_APPIMAGE_DEST_DIR@"
-        -e "@CMAKE_CURRENT_BINARY_DIR@/vnote" -l "${_typst_installed_library}"
+        -e "@CMAKE_CURRENT_BINARY_DIR@/vnote" ${_typst_deploy_args}
         -d "@VX_APPIMAGE_DESKTOP_FILE@"
         -i "@CMAKE_CURRENT_LIST_DIR@/data/core/logo/64x64/vnote.png"
         @VX_EXTRA_DEPLOY_LIBS@
@@ -27,8 +40,10 @@ execute_process(
 if(NOT _typst_linuxdeploy_result STREQUAL "0")
     message(FATAL_ERROR "linuxdeploy failed: ${_typst_linuxdeploy_result}")
 endif()
-file(GLOB_RECURSE _typst_packaged_libraries "@VX_APPIMAGE_DEST_DIR@/libvtextedit_typst.so.1")
-file(GLOB_RECURSE _typst_qt_pdf "@VX_APPIMAGE_DEST_DIR@/libQt6Pdf.so*")
-if(NOT _typst_packaged_libraries OR NOT _typst_qt_pdf)
-    message(FATAL_ERROR "AppDir is missing the Typst library or Qt6Pdf runtime")
+if(_typst_enabled)
+    file(GLOB_RECURSE _typst_packaged_libraries "@VX_APPIMAGE_DEST_DIR@/libvtextedit_typst.so.1")
+    file(GLOB_RECURSE _typst_qt_pdf "@VX_APPIMAGE_DEST_DIR@/libQt6Pdf.so*")
+    if(NOT _typst_packaged_libraries OR NOT _typst_qt_pdf)
+        message(FATAL_ERROR "AppDir is missing the Typst library or Qt6Pdf runtime")
+    endif()
 endif()

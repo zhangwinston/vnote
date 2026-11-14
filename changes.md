@@ -2,7 +2,7 @@
 
 ## Unreleased
 * Restore compilation of the Qt 5.15 / Windows 7 variant by guarding Qt 6-only APIs (QRegularExpression::matchView, QFuture::takeResult, QProcess::startCommand, QDragMoveEvent::position, QVariant::metaType, QList::toList in vtextedit) and fixing const/iterator mismatches in ViewArea2, verified with a full rockylinux:8 Qt 5.15.3 build
-* Fix the Qt 5.15 AppImage packaging by guarding the Typst notices install behind VTEXTEDIT_ENABLE_TYPST; with the variable empty the install rule degenerated to `/` and CPack staged the filesystem root into the package
+* Fix the Qt 5.15 AppImage packaging by guarding the Typst notices install and the linuxdeploy Typst/Qt6Pdf inputs and checks behind VTEXTEDIT_ENABLE_TYPST; previously the empty notices directory staged the filesystem root into the package and the deploy script fatally required Qt 6-only libraries
 * Restore Qt 5.15 / MSVC compilation of the ANSI highlighter's CIEDE2000 color distance by enabling _USE_MATH_DEFINES before `<cmath>` in syntax-highlighting (MSVC's UCRT hides M_PI without it)
 * Pass the mandatory `-Variant` argument in the update-package e2e script test, matching the restored generator contract
 * Disable the view-area tab-reuse suite in CTest on Windows while retaining its build; its pdfCommentDurability row hangs the runner deterministically at the 1200-second deadline (the suite is already CTest-disabled on Linux and macOS for separate causes)
