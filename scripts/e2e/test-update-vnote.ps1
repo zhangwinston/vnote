@@ -724,7 +724,7 @@ try {
     (New-Object Random(1907)).NextBytes($reusable)
     [IO.File]::WriteAllBytes((Join-Path $tree 'resources/reusable.bin'), $reusable)
     & (Join-Path $PSScriptRoot '../gen-update-package.ps1') -ExtractedDir $tree -Version '9.1.0' `
-        -Commit ('a' * 40) -Channel stable -OutputDir $packageParent `
+        -Variant 'win64' -Commit ('a' * 40) -Channel stable -OutputDir $packageParent `
         -MinisignSecretKey $script:SecretKey -SkipDelta
     $manifest = Join-Path $packageParent ($name + '.manifest.json')
     $script:Package = [pscustomobject]@{
