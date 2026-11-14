@@ -661,7 +661,7 @@ try {
     & (Join-Path $PSScriptRoot 'make-update-fixture.ps1') -Root $tree -Generation B
     [IO.File]::Copy($exeB, (Join-Path $tree 'vnote.exe'), $true)
     & (Join-Path $PSScriptRoot '../gen-update-package.ps1') -ExtractedDir $tree -Version '9.1.0' `
-        -Commit ('a' * 40) -Channel stable -OutputDir $packageParent `
+        -Variant 'win64' -Commit ('a' * 40) -Channel stable -OutputDir $packageParent `
         -MinisignSecretKey $script:SecretKey -SkipDelta
     $manifest = Join-Path $packageParent ($name + '.manifest.json')
     $script:Package = [pscustomobject]@{
