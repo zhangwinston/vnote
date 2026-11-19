@@ -412,6 +412,31 @@ function Get-VNoteRelease {
     )
 
     Assert-VNoteVersion -Version $Version
+    if ($Source -eq 'github') {
+        # Public versioned assets avoid the unauthenticated REST API quota, whose
+        # 403 rate-limit responses used to abort preparation entirely. GitHub
+        # release records are never consulted: Select-VNoteReleaseAssets builds
+        # versioned download URLs directly, so synthesize the validated release
+        # shape covering both Windows variants and policy-check every URL offline.
+        $baseUrl = $script:VNoteOrigins[$Source].ReleaseBaseUrl + 'v' + $Version + '/'
+        $assets = New-Object 'System.Collections.Generic.List[object]'
+        foreach ($releaseVariant in @('win64', 'win64-windows7')) {
+            $baseName = "VNote-$Version-$releaseVariant"
+            foreach ($suffix in @('.zip', '.manifest.json', '.manifest.json.minisig')) {
+                $assetName = $baseName + $suffix
+                $null = $assets.Add([pscustomobject]@{
+                    name = $assetName
+                    browser_download_url = $baseUrl + $assetName
+                })
+            }
+        }
+        $release = [pscustomobject]@{ tag_name = ('v' + $Version); prerelease = $false; assets = $assets.ToArray() }
+        Assert-VNoteRelease -Release $release -Version $Version
+        foreach ($asset in $release.assets) {
+            $null = Assert-VNoteUrl -Url $asset.browser_download_url -Source $Source
+        }
+        return $release
+    }
     if ([string]::IsNullOrWhiteSpace($script:VNoteStageRoot)) { throw 'The private attempt directory has not been initialized.' }
     $apiUrl = $script:VNoteOrigins[$Source].ApiBaseUrl + 'v' + $Version
     $apiPath = Join-Path $script:VNoteStageRoot ('release-' + [Guid]::NewGuid().ToString('N') + '.json')
@@ -420,7 +445,7 @@ function Get-VNoteRelease {
         Receive-VNoteFile -Url $apiUrl -Destination $apiPath -Source $Source -MaxBytes (16 * 1024 * 1024)
         $downloaded = $true
         $release = ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($apiPath, [Text.Encoding]::UTF8)) -ErrorAction Stop
-        Assert-VNoteRelease -Release $release -Version $Version -Source $Source
+        Assert-VNoteRelease -Release $release -Version $Version
         # Validate source policy for the only records asset selection may consume.
         $names = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
         foreach ($releaseVariant in @('win64', 'win64-windows7')) {
