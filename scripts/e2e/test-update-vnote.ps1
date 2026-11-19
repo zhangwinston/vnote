@@ -127,6 +127,7 @@ if ($ChildMode -ne 'Run') {
         }
         $script:VNoteTrustedKeys = @($config.PublicKey)
         $code = Invoke-VNoteUpdate -Source $config.Source -Version '9.1.0' -CurrentVersion '9.0.0' `
+            -Variant $config.Variant `
             -InstallDir $config.InstallDir -ParentProcessId $config.ParentProcessId `
             -PipeName $config.PipeName -Token $config.Token
         exit ([int]$code)
@@ -410,7 +411,7 @@ function New-FixtureAttempt {
 function Read-FixtureManifest {
     param($Artifacts, [string[]]$Keys = @($script:PublicKey))
     return (Read-VerifiedVNoteManifest -Path $Artifacts.Manifest -SignaturePath $Artifacts.Signature `
-        -MinisignPath $MinisignPath -Version '9.1.0' -CurrentVersion '9.0.0' -TrustedKeys $Keys)
+        -MinisignPath $MinisignPath -Version '9.1.0' -CurrentVersion '9.0.0' -Variant 'win64' -TrustedKeys $Keys)
 }
 
 function Expand-FixturePackage {
@@ -1374,7 +1375,7 @@ public static class VNoteMappedImageFixture {
     $parent = Start-FixtureParent $lifecycleInstall 'accept' 0
     $attempt = @{
         Updater = $helperScript; BaseUrl = $script:BaseUrl; Port = $port; PublicKey = $script:PublicKey
-        Source = 'github'; InstallDir = $lifecycleInstall
+        Source = 'github'; Variant = 'win64'; InstallDir = $lifecycleInstall
         ParentProcessId = $parent.Child.Process.Id; PipeName = $parent.Pipe; Token = $parent.Token
     }
     $helper = Start-FixtureMode Update $attempt 'failed-real-updater'
