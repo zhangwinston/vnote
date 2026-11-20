@@ -3666,8 +3666,8 @@ bool BufferService::removeObsoleteAttachments(const Buffer2 &p_buffer) {
     const auto notebookId = nodeId.notebookId.toUtf8();
     const auto filePath = nodeId.relativePath.toUtf8();
     char *outPath = nullptr;
-    const auto pathError = vxcore_node_get_attachments_folder(
-        m_context, notebookId.constData(), filePath.constData(), &outPath);
+    const auto pathError = vxcore_node_get_attachments_folder(m_context, notebookId.constData(),
+                                                              filePath.constData(), &outPath);
     const auto folder = cstrToQString(outPath);
     if (pathError != VXCORE_OK || folder.isEmpty()) {
       qWarning() << "removeObsoleteAttachments: cannot resolve attachment folder"
@@ -3688,8 +3688,8 @@ bool BufferService::removeObsoleteAttachments(const Buffer2 &p_buffer) {
       return false;
     }
     const auto json = QJsonDocument(attachments).toJson(QJsonDocument::Compact);
-    const auto error = vxcore_file_update_attachments(
-        m_context, notebookId.constData(), filePath.constData(), json.constData());
+    const auto error = vxcore_file_update_attachments(m_context, notebookId.constData(),
+                                                      filePath.constData(), json.constData());
     if (error != VXCORE_OK) {
       qWarning() << "removeObsoleteAttachments failed:"
                  << QString::fromUtf8(vxcore_error_message(error));

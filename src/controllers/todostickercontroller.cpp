@@ -26,6 +26,7 @@
 #include <vxcore/notebook_json_keys.h>
 
 #include "todoviewwindowcontroller.h"
+#include <utils/qtcompat.h>
 
 using namespace vnotex;
 
@@ -47,7 +48,7 @@ bool containsPath(const QString &p_parent, const QString &p_path, bool p_folder)
 
 bool linkedPath(const QString &p_path) {
   for (QFileInfo part(p_path);; part = QFileInfo(part.absolutePath())) {
-    if (part.isSymbolicLink() || part.isJunction()) {
+    if (fileInfoIsSymbolicLink(part) || fileInfoIsJunction(part)) {
       return true;
     }
     if (part.isRoot()) {

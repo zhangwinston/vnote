@@ -45,6 +45,8 @@
 #include <QTextDocument>
 #include <QToolButton>
 #include <QVBoxLayout>
+#include <QtMath>
+
 #include <cmath>
 #include <functional>
 
@@ -58,6 +60,7 @@
 #include <gui/utils/widgetutils.h>
 #include <m3/qt/emoji_line_edit.h>
 #include <models/todomodels.h>
+#include <utils/qtcompat.h>
 #include <vtextedit/vtextedit.h>
 #include <widgets/plaintextedit.h>
 
@@ -544,7 +547,7 @@ protected:
     }
   }
 
-  void enterEvent(QEnterEvent *p_event) override {
+  void enterEvent(EnterEventCompat *p_event) override {
     QCheckBox::enterEvent(p_event);
     update();
   }
@@ -852,7 +855,8 @@ void TodoEditor::createUi() {
       }
     }
   });
-  connect(m_destination, &QComboBox::activated, this,
+  // QComboBox::activated is overloaded on Qt 5; QOverload stays unambiguous.
+  connect(m_destination, QOverload<int>::of(&QComboBox::activated), this,
           [this]() { m_lastDestination = m_destination->currentData().toString(); });
   connect(m_addHasDue, &QCheckBox::toggled, this, [this]() { refreshQuickAdd(); });
   connect(m_addTask, &QLineEdit::textChanged, this, [this]() { refreshQuickAdd(); });
@@ -2647,7 +2651,13 @@ bool TodoEditor::eventFilter(QObject *p_object, QEvent *p_event) {
         taskMenu->objectName() == QLatin1String("todoTaskMenu") &&
         QApplication::activePopupWidget() == menu) {
       auto *key = static_cast<QKeyEvent *>(p_event);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
       const QKeySequence shortcut(key->keyCombination());
+#else
+      // QKeyEvent::keyCombination() is Qt 6; the key|modifiers int form is the
+      // Qt 5 idiom and must stay an int on both majors.
+      const QKeySequence shortcut(key->key() | key->modifiers());
+#endif
       for (auto *action : taskMenu->actions()) {
         if (action->shortcut().isEmpty() || action->shortcut() != shortcut) {
           continue;

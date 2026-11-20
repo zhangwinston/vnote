@@ -11,6 +11,8 @@
 * Disable the view-area tab-reuse suite in CTest on Windows while retaining its build; its pdfCommentDurability row hangs the runner deterministically at the 1200-second deadline (the suite is already CTest-disabled on Linux and macOS for separate causes)
 * Restore Typst math rendering in generated and protected Markdown viewer templates on Qt 6 by propagating the Typst compile definition to core_services, which previously compiled the silent KaTeX fallback
 * Skip the suggested-rename prompt for notes without a default name or with an unavailable source instead of throwing during buffer replacement
+* Adopt upstream's delta-capable Windows updater while threading the `-Variant` contract through every archive-URL, delta and manifest-verification path, so a windows7 Update Now can no longer resolve win64 asset names or skip the mandatory variant checks
+* Port upstream's native TODO planner to Qt 5.15: guard Qt 6.5-only regular-expression views, `QVariant::metaType`, `QEnterEvent`/`QInputDevice` and `QKeyEvent::keyCombination` behind version checks or qtcompat shims, keeping the TODO feature outside the Typst gate
 
 ## v4.15.2
 A maintenance release with steadier TODO planning, improved Markdown editing and clearer file navigation on top of VNote 4.15.1:

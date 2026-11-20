@@ -18,6 +18,7 @@
 #include <gui/services/themeservice.h>
 #include <gui/utils/treechildcountdelegate.h>
 #include <models/todomodels.h>
+#include <utils/qtcompat.h>
 
 using namespace vnotex;
 
@@ -353,7 +354,13 @@ TodoTaskView::HitPart TodoTaskView::hitPart(const QModelIndex &p_index,
     return HitPart::Section;
   }
   QStyleOptionViewItem option;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   initViewItemOption(&option);
+#else
+  // QAbstractItemView::initViewItemOption is Qt 6; Qt 5 fills the same option
+  // through the protected viewOptions() override.
+  option = viewOptions();
+#endif
   option.rect = visualRect(p_index);
   if (TaskDelegate::checkRect(option).contains(p_position)) {
     return HitPart::Check;
@@ -407,8 +414,8 @@ void TodoTaskView::cancelControlCommit() {
 void TodoTaskView::mousePressEvent(QMouseEvent *p_event) {
   cancelControlCommit();
   m_controlGesture = false;
-  const auto index = indexAt(p_event->position().toPoint());
-  const auto part = hitPart(index, p_event->position().toPoint());
+  const auto index = indexAt(eventPosition(*p_event));
+  const auto part = hitPart(index, eventPosition(*p_event));
   m_lastPressWasControl =
       p_event->button() == Qt::LeftButton && part != HitPart::None && part != HitPart::Body;
   if (!m_lastPressWasControl) {
@@ -430,7 +437,7 @@ void TodoTaskView::mousePressEvent(QMouseEvent *p_event) {
 }
 
 void TodoTaskView::mouseMoveEvent(QMouseEvent *p_event) {
-  setTaskCursor(indexAt(p_event->position().toPoint()));
+  setTaskCursor(indexAt(eventPosition(*p_event)));
   if (m_controlGesture) {
     // No native press was delivered for this control; never drag Qt's previous pressed row.
     p_event->accept();
@@ -446,7 +453,7 @@ void TodoTaskView::mouseReleaseEvent(QMouseEvent *p_event) {
     m_controlGesture = false;
     cancelControlCommit();
     p_event->accept();
-    const auto position = p_event->position().toPoint();
+    const auto position = eventPosition(*p_event);
     if (pressed.isValid() && pressed.model() == model() && indexAt(position) == pressed &&
         hitPart(pressed, position) == part) {
       toggleControl(pressed, part);
@@ -456,9 +463,9 @@ void TodoTaskView::mouseReleaseEvent(QMouseEvent *p_event) {
   const QPointer<TodoTaskView> self(this);
   const bool previousRelease = m_bodyRelease;
   const bool previousSuppression = m_suppressActivation;
-  m_bodyRelease = p_event->button() == Qt::LeftButton &&
-                  hitPart(indexAt(p_event->position().toPoint()), p_event->position().toPoint()) ==
-                      HitPart::Body;
+  m_bodyRelease =
+      p_event->button() == Qt::LeftButton &&
+      hitPart(indexAt(eventPosition(*p_event)), eventPosition(*p_event)) == HitPart::Body;
   // Qt styles may emit activated from a single release; that is not semantic activation.
   m_suppressActivation = true;
   QListView::mouseReleaseEvent(p_event);
@@ -469,7 +476,7 @@ void TodoTaskView::mouseReleaseEvent(QMouseEvent *p_event) {
 }
 
 void TodoTaskView::mouseDoubleClickEvent(QMouseEvent *p_event) {
-  const auto part = hitPart(indexAt(p_event->position().toPoint()), p_event->position().toPoint());
+  const auto part = hitPart(indexAt(eventPosition(*p_event)), eventPosition(*p_event));
   if (p_event->button() == Qt::LeftButton &&
       (m_lastPressWasControl || (part != HitPart::None && part != HitPart::Body))) {
     // The first release already committed. Swallow the double-click and trailing release.
@@ -516,7 +523,13 @@ bool TodoTaskView::viewportEvent(QEvent *p_event) {
   const bool handled = QListView::viewportEvent(p_event);
   if (self) {
     if (p_event->type() == QEvent::Enter) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
       setTaskCursor(indexAt(static_cast<QEnterEvent *>(p_event)->position().toPoint()));
+#else
+      // Qt 5's Enter event is a plain QEvent with no local position; sample
+      // the global cursor mapped into the viewport instead.
+      setTaskCursor(indexAt(viewport()->mapFromGlobal(QCursor::pos())));
+#endif
     } else if (p_event->type() == QEvent::Resize) {
       updateTaskCursor();
     } else if (p_event->type() == QEvent::Leave) {
