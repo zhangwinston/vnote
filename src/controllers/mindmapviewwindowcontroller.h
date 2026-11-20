@@ -20,8 +20,11 @@ class MindMapViewWindowController : public QObject {
   Q_OBJECT
 public:
   // Source-bound note addresses cannot escape their preview via promotion or cloning.
-  // QLatin1String (not QLatin1StringView) for Qt 5 compatibility.
-  static constexpr QLatin1String c_noteAddressPrefix{"vx://mindmap-note/"};
+  // QLatin1String (not QLatin1StringView) for Qt 5 compatibility. Not constexpr:
+  // Qt 5's one-argument QLatin1String constructor calls strlen(), which MSVC
+  // rejects in a constant expression (GCC and Clang accept it as a builtin), so
+  // the inline variable initializes once at load time instead.
+  static inline const QLatin1String c_noteAddressPrefix{"vx://mindmap-note/"};
 
   explicit MindMapViewWindowController(ServiceLocator &p_services, QObject *p_parent = nullptr);
   ~MindMapViewWindowController() override;

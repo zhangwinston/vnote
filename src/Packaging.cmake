@@ -204,7 +204,14 @@ function(windeployqt target)
         endif()
     endif()
 
-    set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+    # Bundle the UCRT only for the Qt 5 / Windows 7 variant: its target systems
+    # have no in-box UCRT, and the fatal assertion below proves the redist was
+    # actually resolved. On Windows 10+ (the win64 variant) the UCRT apisets are
+    # OS components, so shipping them is wrong -- CI's Qt6 composition gate
+    # rejects any api-ms-win-*.dll / ucrtbase.dll found in that package.
+    if(QT_DEFAULT_MAJOR_VERSION EQUAL 5)
+        set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
+    endif()
 
     # NOTE: CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION is pinned in the top-level
     # CMakeLists.txt, before add_subdirectory(libs). It has to be set there
