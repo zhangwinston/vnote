@@ -46,9 +46,10 @@ using EnterEventCompat = QEnterEvent;
 using EnterEventCompat = QEvent;
 #endif
 
-// QFileInfo::isSymbolicLink()/isJunction() are Qt 6 only. Qt 5's isSymLink()
-// reports symbolic links and, on Windows, junctions, so it stands in for the
-// pair; a separate junction probe does not exist there.
+// QFileInfo::isSymbolicLink()/isJunction() only exist on every supported kit
+// from Qt 6 (they were added in 5.15.0, so pre-5.15 kits lack them). Qt 5's
+// isSymLink() reports symbolic links and, on Windows, junctions, so it stands
+// in for the pair; a separate junction probe does not exist there.
 inline bool fileInfoIsSymbolicLink(const QFileInfo &p_info) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   return p_info.isSymbolicLink();

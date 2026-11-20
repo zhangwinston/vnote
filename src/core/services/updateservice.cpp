@@ -121,6 +121,7 @@ QString giteeReleaseNotes(const QByteArray &p_page, const QString &p_version) {
   auto releases = release.globalMatch(page);
   while (releases.hasNext()) {
     const auto item = releases.next();
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     const auto itemTag = tag.matchView(item.capturedView());
     if (itemTag.capturedView(2) != targetTag) {
       continue;
@@ -128,6 +129,17 @@ QString giteeReleaseNotes(const QByteArray &p_page, const QString &p_version) {
     const qsizetype end = releases.hasNext() ? releases.peekNext().capturedStart() : page.size();
     const auto notes =
         textarea.matchView(QStringView(page).sliced(item.capturedEnd(), end - item.capturedEnd()));
+#else
+    // QRegularExpressionMatch::matchView/capturedView and QStringView::sliced are
+    // Qt 6; on Qt 5 fall back to implicit QString conversions of the same spans.
+    const auto itemTag = tag.match(item.captured());
+    if (itemTag.captured(2) != targetTag) {
+      continue;
+    }
+    const qsizetype end = releases.hasNext() ? releases.peekNext().capturedStart() : page.size();
+    const auto notes = textarea.match(
+        QStringView(page).mid(item.capturedEnd(), end - item.capturedEnd()).toString());
+#endif
     if (!notes.hasMatch()) {
       return {};
     }

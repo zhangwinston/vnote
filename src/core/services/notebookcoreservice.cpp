@@ -22,6 +22,7 @@
 #include <core/services/notebookiogate.h>
 #include <core/services/noteoperationservice.h>
 #include <core/services/synclog.h>
+#include <utils/qtcompat.h>
 #include <vxcore/notebook_json_keys.h>
 
 using namespace vnotex;
@@ -1849,7 +1850,8 @@ NoteOperationResult NotebookCoreService::createFileWithContent(const QString &p_
       const auto name = suffix == 0 ? p_desiredName
                                     : base + QLatin1Char('_') + QString::number(suffix) + extension;
       const QFileInfo candidate(directory.filePath(name));
-      if (!candidate.exists() && !candidate.isSymbolicLink() && !candidate.isJunction())
+      if (!candidate.exists() && !fileInfoIsSymbolicLink(candidate) &&
+          !fileInfoIsJunction(candidate))
         return name;
     }
     return QString();
@@ -1874,7 +1876,7 @@ NoteOperationResult NotebookCoreService::createFileWithContent(const QString &p_
     const QFileInfo before(path);
     if ((!external && isNotebookReadOnly(p_notebookId)) ||
         (!p_exactName && availableName() != request.name) || before.exists() ||
-        before.isSymbolicLink() || before.isJunction())
+        fileInfoIsSymbolicLink(before) || fileInfoIsJunction(before))
       return fail(QStringLiteral("precondition_failed"), tr("The file destination changed."));
     bool reconcileRaw = false;
     if (p_exactName) {
@@ -1885,7 +1887,7 @@ NoteOperationResult NotebookCoreService::createFileWithContent(const QString &p_
       // These paths bypass native CreateFile for missing indexed bodies. Check
       // every parent component as well as canonical notebook containment.
       for (QFileInfo part = folderInfo;; part = QFileInfo(part.absolutePath())) {
-        if (part.isSymbolicLink() || part.isJunction())
+        if (fileInfoIsSymbolicLink(part) || fileInfoIsJunction(part))
           return fail(QStringLiteral("unavailable"), tr("The destination folder is unavailable."));
         if (part.isRoot())
           break;
@@ -1956,7 +1958,7 @@ NoteOperationResult NotebookCoreService::createFileWithContent(const QString &p_
       }
     }
     const QFileInfo created(path);
-    if (!created.isFile() || created.isSymbolicLink() || created.isJunction() ||
+    if (!created.isFile() || fileInfoIsSymbolicLink(created) || fileInfoIsJunction(created) ||
         created.size() != 0 ||
         (!external && !reconcileRaw &&
          (result.nodeId.isEmpty() ||

@@ -89,7 +89,7 @@ QString itemTitle(const TodoItem &p_item) {
 }
 
 bool readBoolean(const QVariant &p_value, bool *p_result) {
-  if (p_value.metaType().id() != QMetaType::Bool) {
+  if (p_value.userType() != QMetaType::Bool) {
     return false;
   }
   *p_result = p_value.toBool();
@@ -362,7 +362,13 @@ QMimeData *TodoListModel::mimeData(const QModelIndexList &p_indexes) const {
   const auto kind = list ? DragKind::List : DragKind::Group;
   QByteArray bytes;
   QDataStream stream(&bytes, QIODevice::WriteOnly);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   stream.setVersion(QDataStream::Qt_6_0);
+#else
+  // Qt_6_0 does not exist on Qt 5; Qt_5_12 is the repo's cross-major pin
+  // (see singleinstanceguard) and this payload never crosses processes.
+  stream.setVersion(QDataStream::Qt_5_12);
+#endif
   stream << DragFormatVersion << m_dragIdentity << m_snapshot << m_revision
          << static_cast<quint8>(kind) << (list ? list->m_key : group->m_key);
   auto *mime = new QMimeData();
@@ -379,7 +385,13 @@ bool TodoListModel::decodeDrop(const QMimeData *p_data, Qt::DropAction p_action,
   }
 
   QDataStream stream(p_data->data(ListMimeType));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   stream.setVersion(QDataStream::Qt_6_0);
+#else
+  // Qt_6_0 does not exist on Qt 5; Qt_5_12 is the repo's cross-major pin
+  // (see singleinstanceguard) and this payload never crosses processes.
+  stream.setVersion(QDataStream::Qt_5_12);
+#endif
   quint32 version = 0;
   QUuid identity;
   quint64 snapshot = 0;
@@ -638,8 +650,8 @@ bool TodoTaskModel::setData(const QModelIndex &p_index, const QVariant &p_value,
     return false;
   }
   if (p_role == Qt::CheckStateRole) {
-    if (p_value.metaType().id() != QMetaType::Int &&
-        p_value.metaType() != QMetaType::fromType<Qt::CheckState>()) {
+    if (p_value.userType() != QMetaType::Int &&
+        p_value.userType() != qMetaTypeId<Qt::CheckState>()) {
       return false;
     }
     const auto state = p_value.toInt();
@@ -862,7 +874,13 @@ QMimeData *TodoTaskModel::mimeData(const QModelIndexList &p_indexes) const {
   }
   QByteArray bytes;
   QDataStream stream(&bytes, QIODevice::WriteOnly);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   stream.setVersion(QDataStream::Qt_6_0);
+#else
+  // Qt_6_0 does not exist on Qt 5; Qt_5_12 is the repo's cross-major pin
+  // (see singleinstanceguard) and this payload never crosses processes.
+  stream.setVersion(QDataStream::Qt_5_12);
+#endif
   stream << DragFormatVersion << m_dragIdentity << m_dragSnapshot << m_revision << item->m_listKey
          << item->m_key;
   auto *mime = new QMimeData();
@@ -880,7 +898,13 @@ bool TodoTaskModel::decodeDrop(const QMimeData *p_data, Qt::DropAction p_action,
   }
 
   QDataStream stream(p_data->data(TaskMimeType));
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   stream.setVersion(QDataStream::Qt_6_0);
+#else
+  // Qt_6_0 does not exist on Qt 5; Qt_5_12 is the repo's cross-major pin
+  // (see singleinstanceguard) and this payload never crosses processes.
+  stream.setVersion(QDataStream::Qt_5_12);
+#endif
   quint32 version = 0;
   QUuid identity;
   quint64 snapshot = 0;

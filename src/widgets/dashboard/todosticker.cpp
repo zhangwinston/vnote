@@ -108,7 +108,9 @@ TodoSticker::TodoSticker(ServiceLocator &p_services, QWidget *p_parent)
   connect(m_addTask, &QLineEdit::returnPressed, this, &TodoSticker::submitTask);
   connect(m_edit, &QToolButton::clicked, m_controller, &TodoStickerController::edit);
   connect(m_settings, &QToolButton::clicked, this, &TodoSticker::chooseFile);
-  connect(m_lists, &QComboBox::currentIndexChanged, this, [this](int p_index) {
+  // QComboBox::currentIndexChanged is overloaded on Qt 5 (deprecated QString
+  // overload); QOverload selects the int form on both Qt majors.
+  connect(m_lists, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int p_index) {
     if (p_index >= 0 && !m_controller->isBusy()) {
       const auto kind = m_lists->itemData(p_index, TodoListModel::ViewKindRole);
       if (kind.isValid()) {

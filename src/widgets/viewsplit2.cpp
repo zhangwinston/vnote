@@ -10,7 +10,9 @@
 #include <QFont>
 #include <QFontMetrics>
 #include <QHBoxLayout>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 #include <QInputDevice>
+#endif
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPointer>
@@ -57,8 +59,8 @@ protected:
     QFont bold = regular;
     bold.setBold(true);
     const QString text = tabText(p_index);
-    const int delta = QFontMetrics(bold).horizontalAdvance(text) -
-                      QFontMetrics(regular).horizontalAdvance(text);
+    const int delta =
+        QFontMetrics(bold).horizontalAdvance(text) - QFontMetrics(regular).horizontalAdvance(text);
     if (delta > 0) {
       size.rwidth() += delta;
     }
@@ -227,9 +229,15 @@ void ViewSplit2::scrollTabBar(QWheelEvent *p_event) {
   p_event->accept();
   auto *bar = tabBar();
   // Cocoa supplies estimated pixel deltas even for ordinary, notched mice.
+  // QInputDevice (QWheelEvent::device()) is Qt 6; on Qt 5 a non-null pixel
+  // delta alone signals a pixel-scroll device.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   const bool pixels =
       p_event->device()->capabilities().testFlag(QInputDevice::Capability::PixelScroll) &&
       !p_event->pixelDelta().isNull();
+#else
+  const bool pixels = !p_event->pixelDelta().isNull();
+#endif
   const QPoint delta = pixels ? p_event->pixelDelta() : p_event->angleDelta();
   const bool horizontal = qAbs(delta.x()) > qAbs(delta.y());
   int amount = horizontal ? delta.x() : delta.y();
