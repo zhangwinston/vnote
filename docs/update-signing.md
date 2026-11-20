@@ -66,7 +66,8 @@ produced and audited with a stock tool rather than something invented here.
   resolved from PATH. Preparation pins the archive, executable and upstream
   license by SHA-256 and performs no network fetch during configure or normal
   builds. The three updater files are non-optional package contents. Prepend the
-  installation root to the verifier process's PATH for the package's UCRT DLLs.
+  installation root to the verifier process's PATH for the package's UCRT DLLs
+  (bundled only in the `win64-windows7` variant).
   Minisign 0.11 uses narrow Windows file APIs: invoke it from the manifest's
   directory with relative file arguments, keeping Unicode ancestors in the
   working directory rather than argv. Release filenames remain ASCII. Signing

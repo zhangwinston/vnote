@@ -856,6 +856,7 @@ jobs:
             & "$env:GITHUB_WORKSPACE/scripts/gen-update-package.ps1" `
                 -ExtractedDir "VNote-${{env.VNOTE_VER}}-win64" `
                 -Version "${{env.VNOTE_VER}}" `
+                -Variant 'win64' `
                 -Commit "${{ github.sha }}" `
                 -Channel $channel `
                 @signArgs

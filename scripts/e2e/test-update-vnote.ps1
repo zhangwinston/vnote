@@ -740,13 +740,13 @@ try {
     Write-FixtureText (Join-Path $baseTree 'Qt6Core.dll') 'generation A core'
     [IO.File]::Delete((Join-Path $baseTree 'newfeature/brand_new.dll'))
     & (Join-Path $PSScriptRoot '../gen-update-package.ps1') -ExtractedDir $baseTree -Version '9.0.0' `
-        -Commit ('b' * 40) -Channel stable -OutputDir $baseParent `
+        -Variant 'win64' -Commit ('b' * 40) -Channel stable -OutputDir $baseParent `
         -MinisignSecretKey $script:SecretKey -SkipDelta
     $deltaParent = New-FixtureDirectory 'delta package'
     $deltaTree = Join-Path $deltaParent $name
     Copy-FixtureTree $tree $deltaTree
     & (Join-Path $PSScriptRoot '../gen-update-package.ps1') -ExtractedDir $deltaTree -Version '9.1.0' `
-        -Commit ('a' * 40) -Channel stable -OutputDir $deltaParent `
+        -Variant 'win64' -Commit ('a' * 40) -Channel stable -OutputDir $deltaParent `
         -MinisignSecretKey $script:SecretKey -BaseManifestPath (Join-Path $baseParent 'VNote-9.0.0-win64.manifest.json')
     $deltaManifestPath = Join-Path $deltaParent ($name + '.manifest.json')
     $script:DeltaPackage = [pscustomobject]@{
