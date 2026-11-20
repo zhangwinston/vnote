@@ -12,6 +12,7 @@
 * Restore Typst math rendering in generated and protected Markdown viewer templates on Qt 6 by propagating the Typst compile definition to core_services, which previously compiled the silent KaTeX fallback
 * Skip the suggested-rename prompt for notes without a default name or with an unavailable source instead of throwing during buffer replacement
 * Adopt upstream's delta-capable Windows updater while threading the `-Variant` contract through every archive-URL, delta and manifest-verification path, so a windows7 Update Now can no longer resolve win64 asset names or skip the mandatory variant checks
+* After the 4.15.0 rebase: disable test_todoviewwindow (all platforms) and test_tagexplorer2 (macOS) in CTest while they are broken on upstream's own CI (vnotex runs 44707813280/44707813210), and stop installing the bold-sizing ViewSplitTabBar until a scroll-safe reimplementation lands; upstream's new tab-wheel roundtrip tests fail with widened tabSizeHints
 * Port upstream's native TODO planner to Qt 5.15: guard Qt 6.5-only regular-expression views, `QVariant::metaType`, `QEnterEvent`/`QInputDevice` and `QKeyEvent::keyCombination` behind version checks or qtcompat shims, keeping the TODO feature outside the Typst gate
 
 ## v4.14.1
