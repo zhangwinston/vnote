@@ -27,7 +27,7 @@ WindowsContextMenuController::WindowsContextMenuController(ServiceLocator &p_ser
     }
   });
   connect(
-      &m_process, &QProcess::finished, this,
+      &m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this,
       [this](int p_exitCode, QProcess::ExitStatus p_exitStatus) {
         if (p_exitStatus == QProcess::NormalExit && p_exitCode == 0) {
           complete(true, m_action == Action::Add
