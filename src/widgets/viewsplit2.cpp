@@ -146,10 +146,13 @@ void ViewSplit2::refreshIcons() {
 }
 
 void ViewSplit2::setupUI() {
-  // Must be set before tabs are added; owns the bar via QTabWidget.
-  // Apply tab-bar properties AFTER setTabBar — setTabsClosable/setMovable/etc.
-  // forward to the current bar and are not reapplied on replacement.
-  setTabBar(new ViewSplitTabBar(this));
+  // Bold-sizing tab bar temporarily disabled: upstream's new tab-wheel tests
+  // (test_viewsplit2_reload_menu::testTabWheelScrolling, added with the
+  // 4.15.0 scroll feature) fail their exact scroll roundtrips when
+  // tabSizeHint widens tabs; the selected-tab clipping the subclass fixed
+  // needs a scroll-safe reimplementation. Properties below are applied to the
+  // default bar exactly as upstream does.
+  // setTabBar(new ViewSplitTabBar(this));
 
   setUsesScrollButtons(true);
   setElideMode(Qt::ElideNone);
