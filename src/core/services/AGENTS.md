@@ -908,7 +908,9 @@ Both sources use their website's latest-release HEAD redirect, not REST APIs. Se
 [Per-source endpoints](#per-source-endpoints) for the endpoint and human-facing URL
 contracts and [Redirect and request boundary](#redirect-and-request-boundary) for validation.
 Website throttling remains possible, but REST API quotas are not used by ordinary checks.
-The external Windows updater is separate: its asset discovery uses the source's release-tag API.
+The external Windows updater is separate: its Gitee asset discovery still uses the
+exact-tag API; the GitHub path synthesizes the release from versioned download URLs
+without any API request.
 
 ### Update check threading
 

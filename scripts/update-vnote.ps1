@@ -536,12 +536,13 @@ function Get-VNoteArchiveUrl {
     param(
         [Parameter(Mandatory = $true)][ValidateSet('github', 'gitee')][string]$Source,
         [Parameter(Mandatory = $true)]$Version,
+        [Parameter(Mandatory = $true)][ValidateSet('win64', 'win64-windows7')][string]$Variant,
         [Parameter(Mandatory = $true)]$Assets,
         [switch]$Delta
     )
 
     Assert-VNoteVersion -Version $Version
-    $name = if ($Delta) { "VNote-$Version-win64.delta.zip" } else { "VNote-$Version-win64.zip" }
+    $name = "VNote-$Version-$Variant$(if ($Delta) {'.delta.zip'} else {'.zip'})"
     if ($Source -eq 'github') {
         $url = $script:VNoteOrigins[$Source].ReleaseBaseUrl + 'v' + $Version + '/' + $name
     } else {
@@ -644,8 +645,9 @@ function Get-VNoteDelta {
     if ((Compare-VNoteVersion -Left $baseVersion -Right $version) -ge 0) {
         throw 'The signed delta base version must be older than the offered version.'
     }
+    $variant = Get-VNoteProperty -Object $Manifest -Name 'variant'
     $asset = Get-VNoteProperty -Object $delta -Name 'asset'
-    if ($asset -isnot [string] -or $asset -cne "VNote-$version-win64.delta.zip") {
+    if ($asset -isnot [string] -or $asset -cne "VNote-$version-$variant.delta.zip") {
         throw 'The signed delta asset name does not match the offered update.'
     }
     Assert-VNoteInteger -Value (Get-VNoteProperty -Object $delta -Name 'size') `
@@ -1204,7 +1206,7 @@ function Complete-VNoteDeltaPackage {
         [Parameter(Mandatory = $true)]$Manifest
     )
 
-    Assert-VNoteManifestFiles -Manifest $Manifest -Version $Manifest.version
+    Assert-VNoteManifestFiles -Manifest $Manifest -Version $Manifest.version -Variant $Manifest.variant
     $root = Get-VNoteInstallRoot -InstallDir $InstallDir
     $packageRoot = (Get-VNoteDirectoryIdentity -Path $PackageDir).Path
     if ([string]::IsNullOrWhiteSpace($script:VNoteStageRoot)) {
@@ -1306,14 +1308,14 @@ function Receive-VNotePackage {
         [Parameter(Mandatory = $true)][string]$InstallDir
     )
 
-    $null = Assert-VNoteManifest -Manifest $Manifest -Version $Manifest.version -CurrentVersion $CurrentVersion
+    $null = Assert-VNoteManifest -Manifest $Manifest -Version $Manifest.version -CurrentVersion $CurrentVersion -Variant $Manifest.variant
     $delta = Get-VNoteDelta -Manifest $Manifest
     $useDelta = $null -ne $delta -and $delta.baseVersion -ceq $CurrentVersion -and
         [long]$delta.size -lt [long]$Manifest.fullPackage.size
     foreach ($isDelta in @($true, $false)) {
         if ($isDelta -and -not $useDelta) { continue }
         if ($null -ne $script:VNotePreparationGuard) { $null = & $script:VNotePreparationGuard }
-        $url = Get-VNoteArchiveUrl -Source $Source -Version $Manifest.version -Assets $Assets -Delta:$isDelta
+        $url = Get-VNoteArchiveUrl -Source $Source -Version $Manifest.version -Variant $Manifest.variant -Assets $Assets -Delta:$isDelta
         if ($null -eq $url) {
             Write-Host 'The selected source does not offer the delta. Using the signed full package.'
             continue
