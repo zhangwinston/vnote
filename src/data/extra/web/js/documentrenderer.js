@@ -156,7 +156,20 @@ class DocumentRenderer extends VxWorker {
             return this.renderProtected(p_node, p_html, p_generation);
         }
         if (window.vxOptions.protectFromXss) {
-            p_node.replaceChildren(this.sanitizeFragment(p_html));
+            const fragment = this.sanitizeFragment(p_html);
+            if (typeof p_node.replaceChildren === 'function') {
+                // Chromium 86+: one atomic call that both clears and installs.
+                p_node.replaceChildren(fragment);
+            } else {
+                // Qt 5.15's WebEngine (Chromium 83) lacks Element.replaceChildren.
+                // Clear first and install in ONE appendChild: intermediate
+                // empty states must never be observable to MutationObservers
+                // or incremental rendering.
+                while (p_node.firstChild) {
+                    p_node.removeChild(p_node.firstChild);
+                }
+                p_node.appendChild(fragment);
+            }
         } else {
             p_node.innerHTML = p_html;
         }
