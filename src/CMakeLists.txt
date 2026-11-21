@@ -68,22 +68,48 @@ set(VX_EXTRA_RESOURCE_FILES_RCC ${CMAKE_CURRENT_BINARY_DIR}/vnote_extra.rcc)
 set(VX_EXTRA_QRC_FILE ${CMAKE_CURRENT_LIST_DIR}/data/extra/extra.qrc)
 if(NOT QT_DEFAULT_MAJOR_VERSION GREATER 5)
     # The pdf.js viewer (served over the Qt >= 6.9 only vxpdf:// scheme) never
-    # runs in the Qt 5.15 / Windows 7 variant; keep its ~10 MB asset tree out of
-    # that package. Nothing on Qt 5 resolves these resources.
-    file(STRINGS "${VX_EXTRA_QRC_FILE}" VX_EXTRA_QRC_LINES)
+    # runs in the Qt 5.15 / Windows 7 variant; keep its ~10 MB asset tree out
+    # of that package. Nothing on Qt 5 resolves these resources.
+    #
+    # A bare <file>PATH</file> entry uses PATH as the resource ALIAS. The
+    # previous approach rewrote the paths in place to be relative to the
+    # binary directory, which (a) destroyed every alias so all entries
+    # registered under :/vnotex/data/extra/src/src/data/extra/... and startup
+    # aborted in ThemeService ("no available themes found") right after the
+    # splash, and (b) broke on container layouts where the binary dir and the
+    # source dir share no relative prefix.
+    #
+    # Instead, materialize a filtered COPY of data/extra in the build tree at
+    # the SAME depth: build/<...>/data-extra/extra-qt5.qrc sits beside a copied
+    # data/extra tree, so every original relative path (including the two
+    # docs/ changelog entries pointing at the repository root) keeps working
+    # unchanged. rcc (and CMake's dependency scan) resolve <file> paths
+    # relative to the qrc file itself; the copies preserve them.
+    set(VX_EXTRA_QRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/data-extra")
+    # Copy the CONTENTS of data/extra (not the directory itself) so the copied
+    # extra.qrc keeps its exact original depth: its relative entries (including
+    # ../../../docs pointing at the repository root) resolve identically from
+    # the copy.
+    file(COPY "${CMAKE_CURRENT_LIST_DIR}/data/extra/" DESTINATION "${VX_EXTRA_QRC_DIR}")
+    # Drop the excluded pdf.js tree from the copy so nothing references it.
+    file(REMOVE_RECURSE "${VX_EXTRA_QRC_DIR}/web/pdf.js")
+    file(STRINGS "${VX_EXTRA_QRC_DIR}/extra.qrc" VX_EXTRA_QRC_LINES)
     list(FILTER VX_EXTRA_QRC_LINES EXCLUDE REGEX ">web/pdf\\.js/")
     list(LENGTH VX_EXTRA_QRC_LINES VX_EXTRA_QRC_COUNT)
     string(REPLACE ";" "\n" VX_EXTRA_QRC_TEXT "${VX_EXTRA_QRC_LINES}")
     string(APPEND VX_EXTRA_QRC_TEXT "\n")
-    # rcc (and CMake's qrc dependency scan) resolve <file> paths relative to
-    # the qrc file itself. The generated qrc lives in the binary directory, so
-    # redirect every entry through a relative path back to data/extra/.
-    file(RELATIVE_PATH VX_EXTRA_QRC_REL "${CMAKE_CURRENT_BINARY_DIR}"
-        "${CMAKE_CURRENT_LIST_DIR}/data/extra")
-    string(REGEX REPLACE "(<file[^>]*>)" "\\1${VX_EXTRA_QRC_REL}/" VX_EXTRA_QRC_TEXT
-        "${VX_EXTRA_QRC_TEXT}")
-    set(VX_EXTRA_QRC_FILE ${CMAKE_CURRENT_BINARY_DIR}/extra-qt5.qrc)
-    file(WRITE "${VX_EXTRA_QRC_FILE}" "${VX_EXTRA_QRC_TEXT}")
+    # The two docs changelog entries point at the REPOSITORY root docs/
+    # directory via ../../../docs (relative to the source tree's extra.qrc).
+    # The copied qrc lives at a different depth, so re-derive just those two
+    # paths from the copy's own location; their explicit aliases are untouched.
+    # CMAKE_CURRENT_LIST_DIR is <repo>/src here; <repo>/docs is one level up.
+    file(RELATIVE_PATH VX_DOCS_REL "${VX_EXTRA_QRC_DIR}"
+        "${CMAKE_CURRENT_LIST_DIR}/../docs")
+    string(REGEX REPLACE "(<file alias=\"[^\"]*\">)[^<]*docs/(changes[^<]*)</file>"
+                         "\\1${VX_DOCS_REL}/\\2</file>"
+                         VX_EXTRA_QRC_TEXT "${VX_EXTRA_QRC_TEXT}")
+    file(WRITE "${VX_EXTRA_QRC_DIR}/extra-qt5.qrc" "${VX_EXTRA_QRC_TEXT}")
+    set(VX_EXTRA_QRC_FILE "${VX_EXTRA_QRC_DIR}/extra-qt5.qrc")
     message(STATUS "Qt 5 build: pdf.js assets excluded from extra resources "
                    "(${VX_EXTRA_QRC_COUNT} entries)")
 endif()
