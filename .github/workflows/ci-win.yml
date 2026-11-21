@@ -745,6 +745,41 @@ jobs:
           if ($rc -ne 0) { throw "Packaged Qt5 build cannot initialize TLS (tlsprobe exit $rc)" }
           Write-Host "Packaged Qt5 build initializes TLS"
 
+      - name: Launch smoke on the packaged Qt5 build
+        # The post-splash startup window (ConfigMgr2::ensureExtraData through
+        # MainWindow2 construction) is executed by NO other gate: the Qt5 leg
+        # used to run only tlsprobe.exe, and the Qt6 leg's lone --help launch
+        # exits before the splash. A packaged-launch smoke here is the only
+        # thing that catches resource/install/startup regressions on this
+        # variant (the 4.15.0 Qt5 qrc-alias corruption shipped green twice).
+        if: ${{ matrix.config.qt_major == 5 }}
+        shell: pwsh
+        working-directory: ${{runner.workspace}}/build
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pkg = "VNote-${{env.VNOTE_VER}}-win64-windows7"
+          $exe = Join-Path $pkg 'vnote.exe'
+          if (-not (Test-Path -LiteralPath $exe)) { throw "vnote.exe not found in $pkg" }
+          # Fresh portable profile beside the exe (config/ presence redirects
+          # config/session/WebEngine data away from the runner user).
+          New-Item -ItemType Directory -Force -Path (Join-Path $pkg 'config\app') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $pkg 'config\local') | Out-Null
+          $t0 = Get-Date
+          $p = Start-Process -FilePath $exe -ArgumentList '--no-single-instance' `
+                -WorkingDirectory (Join-Path (Get-Location) $pkg) -PassThru `
+                -RedirectStandardError smoke-err.txt -RedirectStandardOutput smoke-out.txt
+          $alive = -not $p.WaitForExit(45000)
+          if ($alive) {
+            Write-Host "Packaged Qt5 vnote.exe still running after 45s: startup smoke PASS"
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            $null = $p.WaitForExit(15000)
+          } else {
+            Write-Host "EXITED code=$($p.ExitCode) after $(((Get-Date)-$t0).TotalSeconds)s"
+            Write-Host '--- stderr ---'
+            if (Test-Path smoke-err.txt) { Get-Content smoke-err.txt | Select-Object -Last 40 | Write-Host }
+            throw "Packaged Qt5 build exited during startup (code $($p.ExitCode))"
+          }
+
       - name: Verify packaged Windows updater
         # Qt6/win64 only; the Qt5 windows7 variant ships no update assets.
         if: ${{ matrix.config.qt_major == 6 }}
