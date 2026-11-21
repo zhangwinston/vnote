@@ -1,0 +1,66 @@
+name: win7-startup-smoke
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: 'win64-windows7 artifact id to smoke'
+        required: false
+        default: '14650365482'
+jobs:
+  smoke:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Download the windows7 artifact
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ART: ${{ github.event.inputs.artifact_id }}
+        run: |
+          gh api "repos/zhangwinston/vnote/actions/artifacts/$env:ART/zip" > w7.zip
+          if ((Get-Item w7.zip).Length -lt 1000000) { throw "artifact download too small" }
+          Expand-Archive w7.zip -DestinationPath pkg
+          Get-ChildItem pkg | Select-Object Name | Format-Table | Out-String | Write-Host
+      - name: Fresh-profile launch and crash capture
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'pkg\vnote.exe'
+          if (-not (Test-Path $exe)) { throw "vnote.exe not found after extract" }
+          # Portable fresh profile: an (empty) config/ directory beside the exe.
+          New-Item -ItemType Directory -Force -Path (Join-Path $PWD 'pkg\config\app') | Out-Null
+          New-Item -ItemType Directory -Force -Path (Join-Path $PWD 'pkg\config\local') | Out-Null
+          $t0 = Get-Date
+          $p = Start-Process -FilePath $exe -ArgumentList '--no-single-instance','--log-stderr' `
+                -WorkingDirectory (Join-Path $PWD 'pkg') -PassThru `
+                -RedirectStandardError err.txt -RedirectStandardOutput out.txt
+          $exited = $p.WaitForExit(45000)
+          if (-not $exited) {
+            Write-Host "STILL RUNNING after 45s (no startup crash reproduced); stopping"
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            Get-ChildItem (Join-Path $PWD 'pkg\config\local') | Select-Object Name | Format-Table | Out-String | Write-Host
+          } else {
+            Write-Host "EXITED code=$($p.ExitCode) after $(((Get-Date)-$t0).TotalSeconds)s"
+          }
+          Write-Host '--- stderr ---'
+          if (Test-Path err.txt) { Get-Content err.txt | Select-Object -Last 60 | Write-Host }
+          Write-Host '--- stdout ---'
+          if (Test-Path out.txt) { Get-Content out.txt | Select-Object -Last 30 | Write-Host }
+          Write-Host '--- vnote.log tail (if any) ---'
+          $log = Join-Path $PWD 'pkg\config\local\vnote.log'
+          if (Test-Path $log) { Get-Content $log | Select-Object -Last 60 | Write-Host } else { Write-Host '(no vnote.log)' }
+          Write-Host '--- Application error events ---'
+          try {
+            Get-WinEvent -FilterHashtable @{LogName='Application'; Id=1000,1001; StartTime=$t0.AddSeconds(-5)} `
+              -ErrorAction Stop | Select-Object -First 4 | ForEach-Object {
+                Write-Host "EVENT $($_.Id): $($_.Message)"
+              }
+          } catch { Write-Host "no event log entries: $($_.Exception.Message)" }
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: win7-smoke-diagnostics
+          path: |
+            err.txt
+            out.txt
+          if-no-files-found: ignore
