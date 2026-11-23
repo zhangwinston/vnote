@@ -630,7 +630,11 @@ jobs:
   publish:
     name: Publish macOS package (Qt ${{matrix.config.qt}})
     needs: [build, verify_intel]
-    if: github.ref == 'refs/heads/master'
+    # Continuous-build DMG upload lives INSIDE this job (unlike ci-linux/ci-win
+    # whose upload steps sit in the build job), so the job gate must include
+    # refine; the formal [Release] publish step below stays master-only.
+    if: >-
+      contains(fromJSON('["refs/heads/refine", "refs/heads/master"]'), github.ref)
     runs-on: ubuntu-latest
     permissions:
       actions: read
