@@ -1122,7 +1122,7 @@ jobs:
         # assertions unsatisfiable and (b) republishes the official release as a
         # continuous prerelease.
         if: >-
-          github.ref == 'refs/heads/refine' &&
+          contains(fromJSON('["refs/heads/refine", "refs/heads/master"]'), github.ref) &&
           !startsWith(github.event.head_commit.message, '[Release]')
         shell: bash
         working-directory: ${{runner.workspace}}/build

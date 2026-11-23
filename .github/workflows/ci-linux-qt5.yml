@@ -247,7 +247,9 @@ jobs:
           if-no-files-found: error
 
       - name: Update Continuous Build Release
-        if: github.ref == 'refs/heads/refine'
+        if: >-
+          contains(fromJSON('["refs/heads/refine", "refs/heads/master"]'), github.ref) &&
+          !startsWith(github.event.head_commit.message, '[Release]')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
