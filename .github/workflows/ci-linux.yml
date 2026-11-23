@@ -430,7 +430,7 @@ jobs:
 
       - name: Update Continuous Build Release
         if: >-
-          contains(fromJSON('["refs/heads/refine", "refs/heads/master"]'), github.ref) &&
+          github.ref == 'refs/heads/refine' &&
           !startsWith(github.event.head_commit.message, '[Release]')
         shell: bash
         working-directory: ${{runner.workspace}}/build
