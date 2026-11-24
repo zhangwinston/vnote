@@ -74,6 +74,7 @@
 #include "textviewwindowhelper.h"
 #include "viewwindowtoolbarhelper2.h"
 #include "zoomtoolbar.h"
+#include <utils/qtcompat.h>
 
 using namespace vnotex;
 
@@ -2033,7 +2034,7 @@ bool TypstViewWindow::outlineSourceWriterCurrent() const {
     VxCoreError error = VXCORE_OK;
     const auto raw = buffer.peekContentRaw(&error);
     const auto encoded = service->encodeContent(buffer.id(), text);
-    if (error != VXCORE_OK || raw != QByteArrayView(encoded))
+    if (error != VXCORE_OK || raw != QByteArrayViewCompat(encoded))
       return false;
   }
   return true;

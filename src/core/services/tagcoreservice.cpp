@@ -1,11 +1,11 @@
 #include "tagcoreservice.h"
 
-#include <QByteArrayView>
 #include <QDebug>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <memory>
 #include <utility>
+#include <utils/qtcompat.h>
 
 using namespace vnotex;
 
@@ -91,7 +91,7 @@ QVector<TagRecord> TagCoreService::tagsFromView(const VxCoreTagListView &p_view)
     tags.push_back({fromUtf8(tag.name), fromUtf8(tag.parent),
                     metadata.size == 0
                         ? QJsonValue(QJsonObject())
-                        : QJsonValue::fromJson(QByteArrayView(
+                        : QJsonValue::fromJson(QByteArrayViewCompat(
                               metadata.data, static_cast<qsizetype>(metadata.size)))});
   }
   return tags;

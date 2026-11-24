@@ -1,6 +1,5 @@
 #include "notebookcoreservice.h"
 
-#include <QByteArrayView>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -1451,7 +1450,7 @@ FolderListing NotebookCoreService::folderListingFromView(const VxCoreFolderListi
       value.m_existsKnown = entry.exists_known != 0;
       value.m_exists = entry.exists != 0;
       if (entry.metadata_json.size) {
-        value.m_metadata = QJsonValue::fromJson(QByteArrayView(
+        value.m_metadata = QJsonValue::fromJson(QByteArrayViewCompat(
             entry.metadata_json.data, static_cast<qsizetype>(entry.metadata_json.size)));
       }
       value.m_tags.reserve(static_cast<qsizetype>(entry.tag_count));
