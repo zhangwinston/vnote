@@ -122,8 +122,9 @@ public:
 protected:
   void mousePressEvent(QMouseEvent *p_event) override {
     m_suppressGroupRelease = false;
-    m_groupPress = p_event->button() == Qt::LeftButton &&
-                   indexAt(p_event->position().toPoint()).data(TodoListModel::GroupRole).toBool();
+    m_groupPress =
+        p_event->button() == Qt::LeftButton &&
+        indexAt(eventPosition(*p_event)).data(TodoListModel::GroupRole).toBool();
     QListView::mousePressEvent(p_event);
   }
 
@@ -147,7 +148,7 @@ protected:
   }
 
   void mouseMoveEvent(QMouseEvent *p_event) override {
-    setGroupCursor(indexAt(p_event->position().toPoint()));
+    setGroupCursor(indexAt(eventPosition(*p_event)));
     QListView::mouseMoveEvent(p_event);
   }
 
@@ -156,7 +157,13 @@ protected:
     const bool handled = QListView::viewportEvent(p_event);
     if (self) {
       if (p_event->type() == QEvent::Enter) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
         setGroupCursor(indexAt(static_cast<QEnterEvent *>(p_event)->position().toPoint()));
+#else
+        // Qt 5's Enter event is a plain QEvent with no local position; sample
+        // the global cursor mapped into the viewport instead.
+        setGroupCursor(indexAt(viewport()->mapFromGlobal(QCursor::pos())));
+#endif
       } else if (p_event->type() == QEvent::Leave) {
         setGroupCursor({});
       }

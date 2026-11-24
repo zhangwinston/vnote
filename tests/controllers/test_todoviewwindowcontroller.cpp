@@ -2595,9 +2595,9 @@ void TestTodoViewWindowController::modelRolesAndIntents() {
   QVERIFY(!index.data(Qt::AccessibleTextRole).toString().isEmpty());
   QCOMPARE(index.data(TodoTaskModel::SourceListNameRole).toString(), QStringLiteral("Work"));
   QCOMPARE(index.data(TodoTaskModel::DueRole).toDate(), QDate(2026, 11, 11));
-  QCOMPARE(index.data(TodoTaskModel::MyDayRole).metaType().id(), int(QMetaType::QDate));
+  QCOMPARE(index.data(TodoTaskModel::MyDayRole).userType(), int(QMetaType::QDate));
   QCOMPARE(index.data(TodoTaskModel::MyDayRole).toDate(), QDate(2026, 11, 12));
-  QCOMPARE(index.data(TodoTaskModel::InMyDayRole).metaType().id(), int(QMetaType::Bool));
+  QCOMPARE(index.data(TodoTaskModel::InMyDayRole).userType(), int(QMetaType::Bool));
   QVERIFY(index.data(TodoTaskModel::InMyDayRole).toBool());
   QCOMPARE(index.data(TodoTaskModel::StepsCompletedRole).toInt(), 1);
   QCOMPARE(index.data(TodoTaskModel::StepsTotalRole).toInt(), 2);
