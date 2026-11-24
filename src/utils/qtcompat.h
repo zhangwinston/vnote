@@ -2,6 +2,9 @@
 #define VNOTE_QTCOMPAT_H
 
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonValue>
 #include <QFuture>
 #include <QMouseEvent>
 #include <QObject>
@@ -89,6 +92,16 @@ inline QPoint eventGlobalPosition(const QMouseEvent &p_event) {
   return p_event.globalPosition().toPoint();
 #else
   return p_event.globalPos();
+#endif
+}
+
+// QJsonValue::fromJson(QByteArrayView) is Qt 6 only. Qt 5 parses via
+// QJsonDocument::fromJson on a QByteArray and takes the document's value.
+inline QJsonValue jsonValueFromUtf8(const char *p_data, qsizetype p_size) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  return QJsonValue::fromJson(QByteArrayView(p_data, p_size));
+#else
+  return QJsonDocument::fromJson(QByteArray::fromRawData(p_data, static_cast<int>(p_size))).object();
 #endif
 }
 

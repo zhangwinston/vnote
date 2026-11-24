@@ -89,10 +89,9 @@ QVector<TagRecord> TagCoreService::tagsFromView(const VxCoreTagListView &p_view)
     const auto &tag = view.tags[i];
     const auto &metadata = tag.metadata_json;
     tags.push_back({fromUtf8(tag.name), fromUtf8(tag.parent),
-                    metadata.size == 0
-                        ? QJsonValue(QJsonObject())
-                        : QJsonValue::fromJson(QByteArrayViewCompat(
-                              metadata.data, static_cast<qsizetype>(metadata.size)))});
+                    metadata.size == 0 ? QJsonValue(QJsonObject())
+                                      : jsonValueFromUtf8(metadata.data,
+                                                          static_cast<qsizetype>(metadata.size))});
   }
   return tags;
 }

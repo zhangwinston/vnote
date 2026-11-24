@@ -1450,8 +1450,8 @@ FolderListing NotebookCoreService::folderListingFromView(const VxCoreFolderListi
       value.m_existsKnown = entry.exists_known != 0;
       value.m_exists = entry.exists != 0;
       if (entry.metadata_json.size) {
-        value.m_metadata = QJsonValue::fromJson(QByteArrayViewCompat(
-            entry.metadata_json.data, static_cast<qsizetype>(entry.metadata_json.size)));
+        value.m_metadata = jsonValueFromUtf8(
+            entry.metadata_json.data, static_cast<qsizetype>(entry.metadata_json.size));
       }
       value.m_tags.reserve(static_cast<qsizetype>(entry.tag_count));
       for (size_t j = 0; j < entry.tag_count; ++j) {
