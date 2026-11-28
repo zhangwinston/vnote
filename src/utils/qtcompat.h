@@ -1,6 +1,7 @@
 #ifndef VNOTE_QTCOMPAT_H
 #define VNOTE_QTCOMPAT_H
 
+#include <QDropEvent>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -80,6 +81,14 @@ inline QPoint eventPosition(const QMouseEvent &p_event) {
 }
 
 inline QPoint eventPosition(const QWheelEvent &p_event) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  return p_event.position().toPoint();
+#else
+  return p_event.pos();
+#endif
+}
+
+inline QPoint eventPosition(const QDropEvent &p_event) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
   return p_event.position().toPoint();
 #else

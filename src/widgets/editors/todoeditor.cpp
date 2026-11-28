@@ -262,7 +262,7 @@ protected:
 
 private:
   int groupDropRow(const QDropEvent *p_event) const {
-    const auto position = p_event->position().toPoint();
+    const auto position = eventPosition(*p_event);
     const auto index = indexAt(position);
     if (!index.data(TodoListModel::GroupRole).toBool() ||
         model()->canDropMimeData(p_event->mimeData(), p_event->dropAction(), -1, 0, index)) {
@@ -2717,7 +2717,7 @@ bool TodoEditor::eventFilter(QObject *p_object, QEvent *p_event) {
     m_closeDetailsOnTaskClick =
         p_event->type() == QEvent::MouseButtonPress && mouse->button() == Qt::LeftButton &&
         m_detailsOpen &&
-        m_tasks->indexAt(mouse->position().toPoint()).data(TodoTaskModel::IdRole).toString() ==
+        m_tasks->indexAt(eventPosition(*mouse)).data(TodoTaskModel::IdRole).toString() ==
             m_detailsKey;
   }
   if (p_event->type() == QEvent::FocusOut && widget == m_typingField) {
